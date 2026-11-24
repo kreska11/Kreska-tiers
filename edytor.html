@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edytor graczy · Kreska's tiers</title>
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rubik:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+ <div class="wrap">
+  <a class="brand rb" href="./"><img src="logo.png" alt=""><b>Kreska's <span>tiers</span></b></a>
+  <a class="btn ghost" href="./">← Wróć do rankingu</a>
+ </div>
+</header>
+
+<main class="wrap">
+ <h1 class="rb">Edytor graczy</h1>
+ <div class="status err" id="status" role="status"></div>
+ <div class="ed">
+  <section class="card">
+   <h2 class="rb">Gracze</h2>
+   <p class="sub">Dodaj gracza albo zmień jego tier. Główka pobiera się sama z nicku.</p>
+   <form id="f" novalidate>
+    <label>Nick<input id="fNick" maxlength="16" autocomplete="off" spellcheck="false" placeholder="np. Kreska_123"></label>
+    <label>Tier<select id="fTier"></select></label>
+    <label>Region<select id="fReg"></select></label>
+    <div class="fa">
+     <button class="btn gold" id="fSave" type="submit">Dodaj gracza</button>
+     <button class="btn ghost" id="fCancel" type="button" hidden>Anuluj edycję</button>
+    </div>
+   </form>
+   <div class="msg" id="fMsg" role="status"></div>
+   <ul class="al" id="al"></ul>
+  </section>
+
+  <section class="card">
+   <h2 class="rb">Zapisz zmiany na stronie</h2>
+   <ol class="how">
+    <li>Kliknij <b>Kopiuj</b>.</li>
+    <li>Na GitHubie otwórz plik <b>gracze.js</b> i kliknij ołówek (Edit).</li>
+    <li>Zaznacz wszystko (Ctrl+A), wklej (Ctrl+V) i kliknij <b>Commit changes</b>.</li>
+    <li>Po około minucie zmiany są na stronie.</li>
+   </ol>
+   <div class="fa" style="margin-bottom:12px">
+    <button class="btn gold" id="copy" type="button">Kopiuj</button>
+    <button class="btn ghost" id="dl" type="button">Pobierz gracze.js</button>
+   </div>
+   <div class="msg" id="cMsg" role="status"></div>
+   <textarea id="out" readonly spellcheck="false" aria-label="Zawartość pliku gracze.js"></textarea>
+  </section>
+ </div>
+</main>
+
+<script src="wspolne.js"></script>
+<script src="gracze.js"></script>
+<script>
+{
+const {TIERS,REG,NICK,esc,tb,avatar}=KT;
+const $=id=>document.getElementById(id);
+const data=KT.load();
+let players=data.list.map(p=>({...p}));
+let editing=null,dirty=false;
+
+if(data.missing)$('status').textContent='Nie udało się wczytać gracze.js — zaczynasz od pustej listy.';
+else if(data.bad.length)$('status').textContent='Pominięto błędne wpisy: '+data.bad.join('; ')+'.';
+
+$('fTier').innerHTML=TIERS.map(t=>`<option value="${t}">${t}</option>`).join('');
+$('fReg').innerHTML=Object.keys(REG).map(k=>`<option value="${k}">${k} · ${REG[k][0]}</option>`).join('');
+
+function fileText(){
+ const rows=KT.sort(players).map(p=>`  { "nick": ${JSON.stringify(p.nick)}, "tier": "${p.tier}", "region": "${p.region}" }`);
+ return `// Lista graczy Kreska's tiers.
+// Najprościej edytować ją przez edytor: twoja-strona/edytor.html
+// tier:   HT1, LT1, HT2, LT2, HT3, LT3, HT4, LT4, HT5, LT5
+// region: EU, NA, SA, AS, AU, ME, AF
+window.GRACZE = [
+${rows.join(',\n')}
+];
+`;
+}
+function render(){
+ const list=KT.sort(players);
+ $('al').innerHTML=list.length?list.map(p=>`<li>${avatar(p.nick)}<b>${esc(p.nick)}</b>${tb(p.tier)}
+  <button class="sm" type="button" data-edit="${esc(p.nick)}">Edytuj</button>
+  <button class="sm del" type="button" data-del="${esc(p.nick)}">Usuń</button></li>`).join(''):'<li>Brak graczy na liście.</li>';
+ $('out').value=fileText();
+}
+function msg(t,err){$('fMsg').textContent=t;$('fMsg').classList.toggle('err',!!err)}
+function resetForm(){editing=null;$('f').reset();$('fSave').textContent='Dodaj gracza';$('fCancel').hidden=true}
+
+$('f').addEventListener('submit',e=>{
+ e.preventDefault();
+ const nick=$('fNick').value.trim(),tier=$('fTier').value,region=$('fReg').value;
+ if(!NICK.test(nick))return msg('Nick musi mieć 3–16 znaków: litery, cyfry lub _.',true);
+ const same=players.find(p=>p.nick.toLowerCase()===nick.toLowerCase());
+ if(editing){
+  if(same&&same.nick!==editing)return msg('Gracz '+same.nick+' już jest na liście.',true);
+  const p=players.find(x=>x.nick===editing);Object.assign(p,{nick,tier,region});
+  msg('Zapisano: '+nick+' — '+tier);
+ }else if(same){Object.assign(same,{nick,tier,region});msg('Zaktualizowano: '+nick+' — '+tier);}
+ else{players.push({nick,tier,region});msg('Dodano: '+nick+' — '+tier);}
+ dirty=true;resetForm();render();$('fNick').focus();
+});
+$('fCancel').addEventListener('click',()=>{resetForm();msg('')});
+$('al').addEventListener('click',e=>{
+ const ed=e.target.closest('[data-edit]'),del=e.target.closest('[data-del]');
+ if(ed){const p=players.find(x=>x.nick===ed.dataset.edit);if(!p)return;editing=p.nick;$('fNick').value=p.nick;$('fTier').value=p.tier;$('fReg').value=p.region;$('fSave').textContent='Zapisz zmiany';$('fCancel').hidden=false;msg('Edytujesz: '+p.nick);$('fNick').focus()}
+ if(del){
+  if(!del.classList.contains('armed')){del.classList.add('armed');del.textContent='Na pewno?';setTimeout(()=>{if(del.isConnected){del.classList.remove('armed');del.textContent='Usuń'}},4000);return}
+  const nick=del.dataset.del;players=players.filter(p=>p.nick!==nick);if(editing===nick)resetForm();dirty=true;msg('Usunięto: '+nick);render();
+ }
+});
+function cmsg(t,err){$('cMsg').textContent=t;$('cMsg').classList.toggle('err',!!err)}
+$('copy').addEventListener('click',async()=>{
+ try{await navigator.clipboard.writeText($('out').value);cmsg('Skopiowano — teraz wklej to do gracze.js na GitHubie.');dirty=false}
+ catch(err){$('out').focus();$('out').select();cmsg('Nie udało się skopiować automatycznie — tekst jest zaznaczony, naciśnij Ctrl+C.',true)}
+});
+$('dl').addEventListener('click',()=>{
+ const url=URL.createObjectURL(new Blob([$('out').value],{type:'text/javascript'}));
+ const a=document.createElement('a');a.href=url;a.download='gracze.js';document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);cmsg('Pobrano gracze.js — wgraj go na GitHuba w miejsce starego.');dirty=false;
+});
+window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
+render();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kreska's tiers</title>
+<meta name="description" content="Ranking tierów Kreska PvP w Minecrafcie.">
+<meta name="theme-color" content="#ffc31a">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rubik:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+ <div class="wrap">
+  <a class="brand rb" href="./"><img src="logo.png" alt=""><b>Kreska's <span>tiers</span></b></a>
+  <div class="search">
+   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+   <input id="q" type="search" placeholder="Szukaj gracza…" aria-label="Szukaj gracza" autocomplete="off">
+  </div>
+ </div>
+</header>
+
+<section class="hero">
+ <div class="wrap">
+  <div>
+   <div class="modes"><span class="mode"><img src="logo.png" alt="">Kreska PvP</span></div>
+   <h1 class="rb">Ranking Kreska PvP</h1>
+   <p class="lead">Tiery od HT1 (najlepszy) do LT5. Kliknij gracza, żeby zobaczyć jego profil.</p>
+   <div class="stats">
+    <div class="stat"><b id="sAll">–</b><span>graczy</span></div>
+    <div class="stat"><b id="sT1">–</b><span>w Tier 1</span></div>
+    <div class="stat"><b id="sTop">–</b><span>miejsce 1</span></div>
+   </div>
+  </div>
+  <img class="heroart" src="logo.png" alt="Logo Kreska's tiers">
+ </div>
+</section>
+
+<main class="wrap">
+ <div class="status err" id="status" role="status"></div>
+ <section aria-label="Ranking">
+  <div class="list">
+   <div class="lh"><span>#</span><span>Gracz</span><span>Region</span><span>Tier</span></div>
+   <div id="rows"></div>
+  </div>
+ </section>
+ <section class="guide" aria-labelledby="gH">
+  <h2 class="rb" id="gH">Jak działają tiery</h2>
+  <p>Każdy tier ma dwa poziomy: HT (high tier) jest wyżej niż LT (low tier). Ranking jest ułożony według tieru, a przy tym samym tierze alfabetycznie.</p>
+  <div class="gtab" id="guide"></div>
+ </section>
+</main>
+
+<footer>
+ <div class="wrap">
+  <span><b>Kreska's tiers</b> · tryb Kreska PvP</span>
+  <span>Strona nie jest powiązana z Mojang ani Microsoft.</span>
+ </div>
+</footer>
+
+<div class="ov" id="pOv" hidden>
+ <div class="md" role="dialog" aria-modal="true" aria-labelledby="pName">
+  <button class="x" type="button" data-close aria-label="Zamknij">×</button>
+  <div class="prof" id="prof"></div>
+ </div>
+</div>
+
+<script src="wspolne.js"></script>
+<script src="gracze.js"></script>
+<script>
+{
+const {esc,tnum,title,tb,reg,avatar,REG}=KT;
+const $=id=>document.getElementById(id);
+const data=KT.load();
+const ranked=KT.sort(data.list);
+ranked.forEach((p,i)=>p.rank=i+1);
+let query='',lastFocus=null;
+
+if(data.missing)$('status').textContent='Nie udało się wczytać pliku gracze.js — sprawdź, czy nie ma w nim błędu (najłatwiej wygenerować go w edytorze).';
+else if(data.bad.length)$('status').textContent='Pominięto błędne wpisy w gracze.js: '+data.bad.join('; ')+'.';
+
+$('sAll').textContent=ranked.length;
+$('sT1').textContent=ranked.filter(p=>tnum(p.tier)===1).length;
+$('sTop').textContent=ranked[0]?ranked[0].nick:'–';
+
+function render(){
+ const q=query.toLowerCase();
+ const list=q?ranked.filter(p=>p.nick.toLowerCase().includes(q)):ranked;
+ $('rows').innerHTML=list.length?list.map(p=>`<button class="row" type="button" data-nick="${esc(p.nick)}">
+  <span class="rk${p.rank<4?' r'+p.rank:''}">${p.rank}</span>
+  <span class="who">${avatar(p.nick)}<span><b>${esc(p.nick)}</b><small>${title(p.tier)}</small></span></span>
+  ${reg(p.region)}${tb(p.tier)}</button>`).join('')
+  :`<div class="empty">${q?`<b>Brak wyników</b>Nie ma gracza z „${esc(query)}” w nicku.`:'<b>Ranking jest pusty</b>Gracze pojawią się tu wkrótce.'}</div>`;
+}
+
+$('guide').innerHTML=[1,2,3,4,5].map(n=>`<div class="gt t${n}"><h3 class="rb">Tier ${n}</h3>
+ <div class="pair">${tb('HT'+n)}${tb('LT'+n)}</div>
+ <p>${n===1?'HT1: Combat Grandmaster · LT1: Combat Master':title('HT'+n)}</p></div>`).join('');
+
+function showPlayer(nick){
+ const p=ranked.find(x=>x.nick===nick);if(!p)return;
+ $('prof').innerHTML=`${avatar(p.nick)}<h2 class="rb" id="pName">${esc(p.nick)}</h2><p class="ttl">${title(p.tier)}</p>
+  <div class="pg"><div><span>Pozycja</span><b>#${p.rank}</b></div><div><span>Region</span><b>${REG[p.region][0]}</b></div></div>
+  <div class="pmode"><span><img src="logo.png" alt="">Kreska PvP</span>${tb(p.tier)}</div>
+  <a class="nmc" href="https://namemc.com/profile/${encodeURIComponent(p.nick)}" target="_blank" rel="noopener">Zobacz na NameMC →</a>`;
+ const ov=$('pOv');
+ if(ov.hidden){lastFocus=document.activeElement;ov.hidden=false;ov.querySelector('.x').focus()}
+}
+function closeP(){const ov=$('pOv');if(ov.hidden)return;ov.hidden=true;if(lastFocus&&lastFocus.isConnected)lastFocus.focus()}
+$('pOv').addEventListener('click',e=>{if(e.target===$('pOv')||e.target.closest('[data-close]'))closeP()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeP()});
+$('rows').addEventListener('click',e=>{const b=e.target.closest('.row');if(b)showPlayer(b.dataset.nick)});
+
+$('q').addEventListener('input',e=>{query=e.target.value.trim();render()});
+$('q').addEventListener('keydown',e=>{if(e.key!=='Enter')return;const q=query.toLowerCase();const p=ranked.find(x=>x.nick.toLowerCase()===q)||ranked.find(x=>x.nick.toLowerCase().includes(q));if(q&&p)showPlayer(p.nick)});
+
+render();
+}
+</script>
+</body>
+</html>
