@@ -139,3 +139,27 @@ ol.how li{margin:4px 0}
  form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}form>label:first-child{grid-column:1/-1}
  .md{padding:20px 16px}
 }
+/* konta */
+.acct{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.me{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 6px;border-radius:10px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-weight:600;max-width:220px}
+.me:hover{background:var(--panel2)}
+.me .head{width:30px;height:30px;border-radius:5px}
+.me span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tabs{display:flex;gap:4px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:4px;margin:0 0 16px}
+.tabs button{flex:1;min-height:40px;border:0;border-radius:9px;background:none;cursor:pointer;font-weight:600;color:var(--mut)}
+.tabs button[aria-selected=true]{background:var(--panel2);color:var(--ink)}
+.stackf{display:grid;gap:12px}
+.stackf .btn{width:100%}
+.hint{font-size:13px;color:var(--mut);margin:0}
+.bodywrap{display:grid;place-items:center;min-height:250px;background:radial-gradient(160px 160px at 50% 55%,rgba(255,195,26,.16),transparent 70%),var(--bg2);border:1px solid var(--line);border-radius:14px;margin:4px 0 14px}
+.body{display:block;height:240px;width:auto;image-rendering:pixelated}
+.head.big{width:120px;height:120px;border-radius:12px}
+.role{display:inline-block;font-size:13px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--panel2);color:var(--mut);margin-top:6px}
+.role.owner{background:var(--gold);color:#1a1400}.role.mod{background:#2c4a7a;color:#d7e6ff}
+.notier{background:var(--bg2);border:1px dashed var(--line);border-radius:12px;padding:14px;color:var(--mut);margin-top:4px}
+.notier b{display:block;color:var(--ink);font-size:17px}
+.al .rl{font-size:13px;color:var(--mut);white-space:nowrap}
+.sm.on{background:#2c4a7a;border-color:#4a6fae;color:#fff}
+.import{margin-top:14px;padding:12px;border:1px dashed var(--line);border-radius:12px;font-size:14px;color:var(--mut);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.import span{flex:1 1 200px}
+@media(max-width:600px){.acct{flex:1 1 100%}.acct .btn{flex:1 1 0}.acct .me{flex:2 1 0;justify-content:center}.me{max-width:none}}

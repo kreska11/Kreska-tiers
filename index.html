@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://mc-heads.net https://*.mc-heads.net https://minotar.net https://*.minotar.net; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://www.gstatic.com; frame-src https://*.firebaseapp.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Kreska's tiers</title>
 <meta name="description" content="Ranking tierów Kreska PvP w Minecrafcie.">
 <meta name="theme-color" content="#ffc31a">
@@ -16,6 +18,17 @@
 <header class="top">
  <div class="wrap">
   <a class="brand rb" href="./"><img src="logo.png" alt=""><b>Kreska's <span>tiers</span></b></a>
+  <div class="acct" id="acct">
+   <div class="acct" id="acctOut" hidden>
+    <button class="btn ghost" type="button" data-auth="login">Zaloguj się</button>
+    <button class="btn gold" type="button" data-auth="register">Zarejestruj się</button>
+   </div>
+   <div class="acct" id="acctIn" hidden>
+    <button class="me" type="button" id="meBtn" aria-label="Mój profil"></button>
+    <button class="btn gold" type="button" id="panelBtn" hidden>Panel</button>
+    <button class="btn ghost" type="button" id="logoutBtn">Wyloguj</button>
+   </div>
+  </div>
   <div class="search">
    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
    <input id="q" type="search" placeholder="Szukaj gracza…" aria-label="Szukaj gracza" autocomplete="off">
@@ -44,7 +57,7 @@
  <section aria-label="Ranking">
   <div class="list">
    <div class="lh"><span>#</span><span>Gracz</span><span>Region</span><span>Tier</span></div>
-   <div id="rows"></div>
+   <div id="rows"><div class="empty">Ładowanie rankingu…</div></div>
   </div>
  </section>
  <section class="guide" aria-labelledby="gH">
@@ -61,6 +74,7 @@
  </div>
 </footer>
 
+<!-- profil gracza z rankingu -->
 <div class="ov" id="pOv" hidden>
  <div class="md" role="dialog" aria-modal="true" aria-labelledby="pName">
   <button class="x" type="button" data-close aria-label="Zamknij">×</button>
@@ -68,57 +82,71 @@
  </div>
 </div>
 
+<!-- logowanie / rejestracja -->
+<div class="ov" id="authOv" hidden>
+ <div class="md" role="dialog" aria-modal="true" aria-labelledby="authH">
+  <button class="x" type="button" data-close aria-label="Zamknij">×</button>
+  <h2 class="at rb" id="authH">Konto</h2>
+  <div class="tabs" role="tablist">
+   <button type="button" role="tab" id="tabLogin" aria-selected="true">Logowanie</button>
+   <button type="button" role="tab" id="tabReg" aria-selected="false">Rejestracja</button>
+  </div>
+  <form id="authF" class="stackf" novalidate>
+   <label>Nick z Minecrafta<input id="aNick" maxlength="16" autocomplete="username" spellcheck="false" autocapitalize="off"></label>
+   <label>Hasło<input id="aPass" type="password" autocomplete="current-password" maxlength="128"></label>
+   <label id="aPass2Row" hidden>Powtórz hasło<input id="aPass2" type="password" autocomplete="new-password" maxlength="128"></label>
+   <p class="hint" id="aHint" hidden>Hasło: co najmniej 8 znaków. Zapamiętaj je – nie da się go przypomnieć mailem.</p>
+   <button class="btn gold" id="aSubmit" type="submit">Zaloguj się</button>
+  </form>
+  <div class="msg err" id="aMsg" role="status"></div>
+ </div>
+</div>
+
+<!-- mój profil -->
+<div class="ov" id="meOv" hidden>
+ <div class="md" role="dialog" aria-modal="true" aria-labelledby="meName">
+  <button class="x" type="button" data-close aria-label="Zamknij">×</button>
+  <div class="prof" id="meProf"></div>
+ </div>
+</div>
+
+<!-- panel właściciela / moderatora -->
+<div class="ov" id="aOv" hidden>
+ <div class="md wide" role="dialog" aria-modal="true" aria-labelledby="aH">
+  <button class="x" type="button" data-close aria-label="Zamknij">×</button>
+  <h2 class="at rb" id="aH">Panel</h2>
+  <div class="tabs" role="tablist" id="panelTabs">
+   <button type="button" role="tab" id="ptPlayers" aria-selected="true">Gracze w rankingu</button>
+   <button type="button" role="tab" id="ptPerms" aria-selected="false" hidden>Uprawnienia</button>
+  </div>
+  <div id="paPlayers">
+   <form id="f" novalidate>
+    <label>Nick<input id="fNick" maxlength="16" autocomplete="off" spellcheck="false" placeholder="np. Kreska_123"></label>
+    <label>Tier<select id="fTier"></select></label>
+    <label>Region<select id="fReg"></select></label>
+    <div class="fa">
+     <button class="btn gold" id="fSave" type="submit">Dodaj gracza</button>
+     <button class="btn ghost" id="fCancel" type="button" hidden>Anuluj edycję</button>
+    </div>
+   </form>
+   <div class="msg" id="fMsg" role="status"></div>
+   <ul class="al" id="al"></ul>
+   <div class="import" id="importBox" hidden>
+    <span id="importTxt"></span>
+    <button class="btn ghost" type="button" id="importBtn">Importuj</button>
+   </div>
+  </div>
+  <div id="paPerms" hidden>
+   <p class="sub">Moderator może dodawać, zmieniać i usuwać graczy w rankingu. Uprawnienia nadaje tylko właściciel.</p>
+   <div class="msg" id="uMsg" role="status"></div>
+   <ul class="al" id="ul"></ul>
+  </div>
+ </div>
+</div>
+
 <script src="wspolne.js"></script>
+<script src="config.js"></script>
 <script src="gracze.js"></script>
-<script>
-{
-const {esc,tnum,title,tb,reg,avatar,REG}=KT;
-const $=id=>document.getElementById(id);
-const data=KT.load();
-const ranked=KT.sort(data.list);
-ranked.forEach((p,i)=>p.rank=i+1);
-let query='',lastFocus=null;
-
-if(data.missing)$('status').textContent='Nie udało się wczytać pliku gracze.js — sprawdź, czy nie ma w nim błędu (najłatwiej wygenerować go w edytorze).';
-else if(data.bad.length)$('status').textContent='Pominięto błędne wpisy w gracze.js: '+data.bad.join('; ')+'.';
-
-$('sAll').textContent=ranked.length;
-$('sT1').textContent=ranked.filter(p=>tnum(p.tier)===1).length;
-$('sTop').textContent=ranked[0]?ranked[0].nick:'–';
-
-function render(){
- const q=query.toLowerCase();
- const list=q?ranked.filter(p=>p.nick.toLowerCase().includes(q)):ranked;
- $('rows').innerHTML=list.length?list.map(p=>`<button class="row" type="button" data-nick="${esc(p.nick)}">
-  <span class="rk${p.rank<4?' r'+p.rank:''}">${p.rank}</span>
-  <span class="who">${avatar(p.nick)}<span><b>${esc(p.nick)}</b><small>${title(p.tier)}</small></span></span>
-  ${reg(p.region)}${tb(p.tier)}</button>`).join('')
-  :`<div class="empty">${q?`<b>Brak wyników</b>Nie ma gracza z „${esc(query)}” w nicku.`:'<b>Ranking jest pusty</b>Gracze pojawią się tu wkrótce.'}</div>`;
-}
-
-$('guide').innerHTML=[1,2,3,4,5].map(n=>`<div class="gt t${n}"><h3 class="rb">Tier ${n}</h3>
- <div class="pair">${tb('HT'+n)}${tb('LT'+n)}</div>
- <p>${n===1?'HT1: Combat Grandmaster · LT1: Combat Master':title('HT'+n)}</p></div>`).join('');
-
-function showPlayer(nick){
- const p=ranked.find(x=>x.nick===nick);if(!p)return;
- $('prof').innerHTML=`${avatar(p.nick)}<h2 class="rb" id="pName">${esc(p.nick)}</h2><p class="ttl">${title(p.tier)}</p>
-  <div class="pg"><div><span>Pozycja</span><b>#${p.rank}</b></div><div><span>Region</span><b>${REG[p.region][0]}</b></div></div>
-  <div class="pmode"><span><img src="logo.png" alt="">Kreska PvP</span>${tb(p.tier)}</div>
-  <a class="nmc" href="https://namemc.com/profile/${encodeURIComponent(p.nick)}" target="_blank" rel="noopener">Zobacz na NameMC →</a>`;
- const ov=$('pOv');
- if(ov.hidden){lastFocus=document.activeElement;ov.hidden=false;ov.querySelector('.x').focus()}
-}
-function closeP(){const ov=$('pOv');if(ov.hidden)return;ov.hidden=true;if(lastFocus&&lastFocus.isConnected)lastFocus.focus()}
-$('pOv').addEventListener('click',e=>{if(e.target===$('pOv')||e.target.closest('[data-close]'))closeP()});
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeP()});
-$('rows').addEventListener('click',e=>{const b=e.target.closest('.row');if(b)showPlayer(b.dataset.nick)});
-
-$('q').addEventListener('input',e=>{query=e.target.value.trim();render()});
-$('q').addEventListener('keydown',e=>{if(e.key!=='Enter')return;const q=query.toLowerCase();const p=ranked.find(x=>x.nick.toLowerCase()===q)||ranked.find(x=>x.nick.toLowerCase().includes(q));if(q&&p)showPlayer(p.nick)});
-
-render();
-}
-</script>
+<script type="module" src="app.js"></script>
 </body>
 </html>

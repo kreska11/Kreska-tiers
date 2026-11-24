@@ -11,8 +11,9 @@ window.KT = (() => {
   const reg = k => `<span class="reg" style="--c:${REG[k][1]}" title="${REG[k][0]}">${k}</span>`;
 
   // Główka z gry: mc-heads.net, zapasowo minotar.net, a na końcu rysowana główka.
-  const headUrl = n => 'https://mc-heads.net/avatar/' + encodeURIComponent(n) + '/64';
-  const avatar = nick => `<img class="head" src="${headUrl(nick)}" data-nick="${esc(nick)}" alt="" width="40" height="40" loading="lazy" referrerpolicy="no-referrer">`;
+  const enc = encodeURIComponent;
+  const avatar = nick => `<img class="head" src="https://mc-heads.net/avatar/${enc(nick)}/64" data-alt="https://minotar.net/helm/${enc(nick)}/64.png" data-nick="${esc(nick)}" alt="" width="40" height="40" loading="lazy" referrerpolicy="no-referrer">`;
+  const body = nick => `<img class="body" src="https://mc-heads.net/body/${enc(nick)}/240" data-alt="https://minotar.net/armor/body/${enc(nick)}/240.png" data-nick="${esc(nick)}" data-kind="body" alt="Skin gracza ${esc(nick)}" referrerpolicy="no-referrer">`;
 
   const gen = new Map();
   function genHead(nick) {
@@ -40,16 +41,19 @@ window.KT = (() => {
     gen.set(key, svg);
     return svg;
   }
+  // Gdy obrazek się nie wczyta: najpierw zapasowy serwis, potem rysowana główka.
   document.addEventListener('error', e => {
     const im = e.target;
     if (!(im instanceof HTMLImageElement) || !im.dataset.nick) return;
-    if (!im.dataset.fb) { im.dataset.fb = '1'; im.src = 'https://minotar.net/helm/' + encodeURIComponent(im.dataset.nick) + '/64.png'; return; }
+    if (im.dataset.alt && !im.dataset.fb) { im.dataset.fb = '1'; im.src = im.dataset.alt; return; }
     const box = document.createElement('div');
     box.innerHTML = genHead(im.dataset.nick);
-    im.replaceWith(box.firstChild);
+    const svg = box.firstChild;
+    if (im.dataset.kind === 'body') svg.classList.add('big');
+    im.replaceWith(svg);
   }, true);
 
-  // Czyta listę z gracze.js i odrzuca błędne wpisy (zwraca też listę problemów).
+  // Czyta starą listę z gracze.js (do jednorazowego importu) i odrzuca błędne wpisy.
   function load() {
     const raw = Array.isArray(window.GRACZE) ? window.GRACZE : [];
     const out = [], bad = [], seen = new Set();
@@ -67,5 +71,12 @@ window.KT = (() => {
   }
   const sort = list => [...list].sort((a, b) => TIERS.indexOf(a.tier) - TIERS.indexOf(b.tier) || a.nick.toLowerCase().localeCompare(b.nick.toLowerCase()));
 
-  return { TIERS, REG, NICK, esc, tnum, title, tb, reg, avatar, genHead, load, sort };
+  return { TIERS, REG, NICK, esc, tnum, title, tb, reg, avatar, body, genHead, load, sort };
 })();
+
+// Jeśli główny skrypt nie wystartuje (np. brak internetu), pokaż komunikat.
+setTimeout(() => {
+  if (window.KT_READY) return;
+  const s = document.getElementById('status');
+  if (s && !s.textContent) s.textContent = 'Nie udało się załadować strony. Sprawdź połączenie z internetem i odśwież stronę.';
+}, 10000);
