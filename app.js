@@ -5,7 +5,8 @@ import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWith
 import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc, updateDoc, serverTimestamp, writeBatch } from 'https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js';
 
 window.KT_READY = true;
-const { TIERS, REG, NICK, esc, tnum, title, tb, reg, avatar, body } = window.KT;
+const { TIERS, PROGI, tierFor, REG, NICK, esc, tnum, title, tb, reg, avatar, body } = window.KT;
+const PTS = /^\d{1,4}$/;
 const CFG = window.KT_CONFIG || {};
 const DOMAIN = 'gracze.kreska-tiers.example.com';
 const OWNER = String(CFG.ownerNick || '').toLowerCase();
@@ -23,7 +24,7 @@ const staff = () => !!me && (me.owner || me.role === 'mod');
 function status(t) { $('status').textContent = t || ''; }
 
 function render() {
-  ranked = [...players].sort((a, b) => TIERS.indexOf(a.tier) - TIERS.indexOf(b.tier) || a.nick.toLowerCase().localeCompare(b.nick.toLowerCase()));
+  ranked = [...players].sort((a, b) => b.points - a.points || a.nick.toLowerCase().localeCompare(b.nick.toLowerCase()));
   ranked.forEach((p, i) => p.rank = i + 1);
   const q = query.toLowerCase();
   const list = q ? ranked.filter(p => p.nick.toLowerCase().includes(q)) : ranked;
@@ -33,7 +34,7 @@ function render() {
   if (!loaded && !list.length) return;
   $('rows').innerHTML = list.length ? list.map(p => `<button class="row" type="button" data-nick="${esc(p.nick)}">
     <span class="rk${p.rank < 4 ? ' r' + p.rank : ''}">${p.rank}</span>
-    <span class="who">${avatar(p.nick)}<span><b>${esc(p.nick)}</b><small>${title(p.tier)}</small></span></span>
+    <span class="who">${avatar(p.nick)}<span><b>${esc(p.nick)}</b><small>${p.points} pkt · ${title(p.tier)}</small></span></span>
     ${reg(p.region)}${tb(p.tier)}</button>`).join('')
     : `<div class="empty">${q ? `<b>Brak wyników</b>Nie ma gracza z „${esc(query)}” w nicku.` : '<b>Ranking jest pusty</b>Gracze pojawią się tu wkrótce.'}</div>`;
   if (!$('aOv').hidden) renderPanel();
@@ -42,7 +43,7 @@ function render() {
 }
 
 $('guide').innerHTML = [1, 2, 3, 4, 5].map(n => `<div class="gt t${n}"><h3 class="rb">Tier ${n}</h3>
-  <div class="pair">${tb('HT' + n)}${tb('LT' + n)}</div>
+  <div class="pair"><div>${tb('HT' + n)}<span class="pts">od ${PROGI['HT' + n]} pkt</span></div><div>${tb('LT' + n)}<span class="pts">od ${PROGI['LT' + n]} pkt</span></div></div>
   <p>${n === 1 ? 'HT1: Combat Grandmaster · LT1: Combat Master' : title('HT' + n)}</p></div>`).join('');
 
 /* ---------- okienka ---------- */
@@ -61,7 +62,7 @@ function showPlayer(nick) {
   const p = ranked.find(x => x.nick === nick); if (!p) return;
   openNick = nick;
   $('prof').innerHTML = `${avatar(p.nick)}<h2 class="rb" id="pName">${esc(p.nick)}</h2><p class="ttl">${title(p.tier)}</p>
-    <div class="pg"><div><span>Pozycja</span><b>#${p.rank}</b></div><div><span>Region</span><b>${REG[p.region][0]}</b></div></div>
+    <div class="pg"><div><span>Pozycja</span><b>#${p.rank}</b></div><div><span>Punkty</span><b>${p.points}</b></div><div><span>Region</span><b>${REG[p.region][0]}</b></div></div>
     <div class="pmode"><span><img src="logo.png" alt="">Kreska PvP</span>${tb(p.tier)}</div>
     <a class="nmc" href="https://namemc.com/profile/${encodeURIComponent(p.nick)}" target="_blank" rel="noopener noreferrer">Zobacz na NameMC →</a>`;
   if ($('pOv').hidden) openOv($('pOv'));
@@ -98,8 +99,10 @@ if (db) {
     players = [];
     snap.forEach(d => {
       const x = d.data() || {};
-      if (typeof x.nick === 'string' && NICK.test(x.nick) && TIERS.includes(x.tier))
-        players.push({ id: d.id, nick: x.nick, tier: x.tier, region: Object.hasOwn(REG, x.region) ? x.region : 'EU' });
+      // Punkty; stare wpisy z samym tierem dostają punkty progu tego tieru.
+      const points = Number.isInteger(x.points) && x.points >= 0 && x.points <= 9999 ? x.points : TIERS.includes(x.tier) ? PROGI[x.tier] : null;
+      if (typeof x.nick === 'string' && NICK.test(x.nick) && points !== null)
+        players.push({ id: d.id, nick: x.nick, points, tier: tierFor(points), region: Object.hasOwn(REG, x.region) ? x.region : 'EU' });
     });
     if (!snap.metadata.fromCache) { loaded = true; clearTimeout(timer); if (/bazą/.test($('status').textContent)) status(''); }
     render();
@@ -225,18 +228,19 @@ function renderMe() {
   const role = me.owner ? '<span class="role owner">Właściciel</span>' : me.role === 'mod' ? '<span class="role mod">Moderator</span>' : '<span class="role">Gracz</span>';
   $('meProf').innerHTML = `<div class="bodywrap">${body(me.nick)}</div>
     <h2 class="rb" id="meName">${esc(me.nick)}</h2>${role}
-    ${p ? `<p class="ttl" style="margin-top:10px">${title(p.tier)}</p>
-      <div class="pg"><div><span>Pozycja</span><b>#${p.rank}</b></div><div><span>Region</span><b>${REG[p.region][0]}</b></div></div>
+    ${p && p.tier ? `<p class="ttl" style="margin-top:10px">${title(p.tier)}</p>
+      <div class="pg"><div><span>Pozycja</span><b>#${p.rank}</b></div><div><span>Punkty</span><b>${p.points}</b></div><div><span>Region</span><b>${REG[p.region][0]}</b></div></div>
       <div class="pmode"><span><img src="logo.png" alt="">Kreska PvP</span>${tb(p.tier)}</div>`
-    : `<div class="notier" style="margin-top:14px"><b>Nie masz jeszcze tiera</b>Gdy zostaniesz przetestowany, Twój tier pojawi się tutaj.</div>`}`;
+    : `<div class="notier" style="margin-top:14px"><b>Nie masz jeszcze tiera</b>${p ? `Masz ${p.points} pkt – pierwszy tier (LT5) jest od ${PROGI.LT5} pkt.` : 'Gdy zostaniesz przetestowany, Twój tier pojawi się tutaj.'}</div>`}`;
 }
 $('meBtn').addEventListener('click', () => { renderMe(); openOv($('meOv')); });
 
 /* ---------- panel ---------- */
-$('fTier').innerHTML = TIERS.map(t => `<option value="${t}">${t}</option>`).join('');
+function tierPrev() { const v = $('fPts').value.trim(); $('fTierPrev').innerHTML = PTS.test(v) ? tb(tierFor(+v)) : ''; }
+$('fPts').addEventListener('input', tierPrev);
 $('fReg').innerHTML = Object.keys(REG).map(k => `<option value="${k}">${k} · ${REG[k][0]}</option>`).join('');
 function fmsg(t, err) { $('fMsg').textContent = t; $('fMsg').classList.toggle('err', !!err); }
-function resetForm() { editing = null; $('f').reset(); $('fSave').textContent = 'Dodaj gracza'; $('fCancel').hidden = true; }
+function resetForm() { editing = null; $('f').reset(); tierPrev(); $('fSave').textContent = 'Dodaj gracza'; $('fCancel').hidden = true; }
 function showTab(t) {
   const perms = t === 'perms' && me && me.owner;
   $('ptPlayers').setAttribute('aria-selected', String(!perms));
@@ -248,7 +252,7 @@ $('ptPerms').addEventListener('click', () => showTab('perms'));
 
 const oldList = () => (window.KT.load().list);
 function renderPanel() {
-  $('al').innerHTML = ranked.length ? ranked.map(p => `<li>${avatar(p.nick)}<b>${esc(p.nick)}</b>${tb(p.tier)}
+  $('al').innerHTML = ranked.length ? ranked.map(p => `<li>${avatar(p.nick)}<b>${esc(p.nick)}</b><span class="rl">${p.points} pkt</span>${tb(p.tier)}
     <button class="sm" type="button" data-edit="${esc(p.nick)}">Edytuj</button>
     <button class="sm del" type="button" data-del="${esc(p.nick)}">Usuń</button></li>`).join('') : '<li>Brak graczy w rankingu.</li>';
   const old = oldList();
@@ -268,16 +272,18 @@ $('fCancel').addEventListener('click', () => { resetForm(); fmsg(''); });
 $('f').addEventListener('submit', async e => {
   e.preventDefault();
   if (busy || !staff()) return;
-  const nick = $('fNick').value.trim(), tier = $('fTier').value, region = $('fReg').value;
+  const nick = $('fNick').value.trim(), ptsTxt = $('fPts').value.trim(), region = $('fReg').value;
   if (!NICK.test(nick)) return fmsg('Nick musi mieć 3–16 znaków: litery, cyfry lub _.', true);
-  if (!TIERS.includes(tier) || !Object.hasOwn(REG, region)) return fmsg('Wybierz tier i region.', true);
+  if (!PTS.test(ptsTxt)) return fmsg('Wpisz punkty: liczba całkowita od 0 do 9999.', true);
+  if (!Object.hasOwn(REG, region)) return fmsg('Wybierz region.', true);
+  const points = +ptsTxt, tier = tierFor(points);
   const id = nick.toLowerCase();
   const exists = players.find(p => p.id === id);
   const oldId = editing ? editing.toLowerCase() : null;
   if (editing && id !== oldId && exists) return fmsg('Gracz ' + exists.nick + ' już jest w rankingu.', true);
   busy = true; $('fSave').disabled = true;
   try {
-    const data = { nick, tier, region, updatedAt: serverTimestamp() };
+    const data = { nick, points, region, updatedAt: serverTimestamp() };
     if (editing && id !== oldId) {
       const b = writeBatch(db);
       b.set(doc(db, 'players', id), data);
@@ -286,7 +292,7 @@ $('f').addEventListener('submit', async e => {
     } else {
       await setDoc(doc(db, 'players', id), data);
     }
-    fmsg((editing || exists ? 'Zapisano: ' : 'Dodano: ') + nick + ' – ' + tier);
+    fmsg((editing || exists ? 'Zapisano: ' : 'Dodano: ') + nick + ' – ' + points + ' pkt (' + (tier || 'bez tieru') + ')');
     resetForm(); $('fNick').focus();
   } catch (err) { fmsg(authError(err), true); }
   finally { busy = false; $('fSave').disabled = false; }
@@ -296,7 +302,7 @@ $('al').addEventListener('click', async e => {
   const ed = e.target.closest('[data-edit]'), del = e.target.closest('[data-del]');
   if (ed) {
     const p = ranked.find(x => x.nick === ed.dataset.edit); if (!p) return;
-    editing = p.nick; $('fNick').value = p.nick; $('fTier').value = p.tier; $('fReg').value = p.region;
+    editing = p.nick; $('fNick').value = p.nick; $('fPts').value = p.points; tierPrev(); $('fReg').value = p.region;
     $('fSave').textContent = 'Zapisz zmiany'; $('fCancel').hidden = false; fmsg('Edytujesz: ' + p.nick); $('fNick').focus();
   }
   if (del && !busy) {
@@ -319,7 +325,7 @@ $('importBtn').addEventListener('click', async () => {
   try {
     for (let i = 0; i < old.length; i += 400) {
       const b = writeBatch(db);
-      old.slice(i, i + 400).forEach(p => b.set(doc(db, 'players', p.nick.toLowerCase()), { nick: p.nick, tier: p.tier, region: p.region, updatedAt: serverTimestamp() }));
+      old.slice(i, i + 400).forEach(p => b.set(doc(db, 'players', p.nick.toLowerCase()), { nick: p.nick, points: PROGI[p.tier], region: p.region, updatedAt: serverTimestamp() }));
       await b.commit();
     }
     fmsg('Zaimportowano ' + old.length + ' graczy. Teraz możesz usunąć plik gracze.js z GitHuba.');

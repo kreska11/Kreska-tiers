@@ -13,5 +13,15 @@ window.KT_CONFIG = {
     messagingSenderId: "33893141436",
     appId: "1:33893141436:web:8a7be6a8c415514bb2f9b9"
   },
-  ownerNick: "Kreska11"
+  ownerNick: "Kreska11",
+
+  // Ile punktów trzeba mieć na dany tier (od najwyższego do najniższego).
+  // Każdy próg musi być MNIEJSZY od poprzedniego. Poniżej LT5 gracz jest "bez tieru".
+  progi: {
+    HT1: 60, LT1: 45,
+    HT2: 30, LT2: 20,
+    HT3: 10, LT3: 6,
+    HT4: 4,  LT4: 3,
+    HT5: 2,  LT5: 1
+  }
 };

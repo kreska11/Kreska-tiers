@@ -17,7 +17,8 @@
 <body>
 <header class="top">
  <div class="wrap">
-  <a class="brand rb" href="./"><img src="logo.png" alt=""><b>Kreska's <span>tiers</span></b></a>
+  <a class="brand rb" href="#ranking"><img src="logo.png" alt=""><b>Kreska's <span>tiers</span></b></a>
+  <nav class="nav" aria-label="Zakładki"><a href="#ranking" id="navRanking">Ranking</a><a href="#kity" id="navKity">Kity</a></nav>
   <div class="acct" id="acct">
    <div class="acct" id="acctOut" hidden>
     <button class="btn ghost" type="button" data-auth="login">Zaloguj się</button>
@@ -36,7 +37,7 @@
  </div>
 </header>
 
-<section class="hero">
+<section class="hero" id="hero">
  <div class="wrap">
   <div>
    <div class="modes"><span class="mode"><img src="logo.png" alt="">Kreska PvP</span></div>
@@ -54,6 +55,7 @@
 
 <main class="wrap">
  <div class="status err" id="status" role="status"></div>
+ <div id="vRanking">
  <section aria-label="Ranking">
   <div class="list">
    <div class="lh"><span>#</span><span>Gracz</span><span>Region</span><span>Tier</span></div>
@@ -62,8 +64,16 @@
  </section>
  <section class="guide" aria-labelledby="gH">
   <h2 class="rb" id="gH">Jak działają tiery</h2>
-  <p>Każdy tier ma dwa poziomy: HT (high tier) jest wyżej niż LT (low tier). Ranking jest ułożony według tieru, a przy tym samym tierze alfabetycznie.</p>
+  <p>Tier wynika z liczby punktów: każdy tier ma dwa poziomy, HT (high tier) jest wyżej niż LT (low tier). Ranking jest ułożony według punktów, a przy równej liczbie punktów alfabetycznie.</p>
   <div class="gtab" id="guide"></div>
+ </section>
+ </div>
+
+ <section id="vKity" class="kity" hidden aria-labelledby="kH">
+  <h1 class="rb" id="kH">Kity</h1>
+  <p class="lead">Wybierz kit, żeby zobaczyć, jak wygląda i jakie ma enchanty.</p>
+  <div class="kitpick" id="kitPick" role="tablist" aria-label="Kity"></div>
+  <div id="kitView"></div>
  </section>
 </main>
 
@@ -122,7 +132,7 @@
   <div id="paPlayers">
    <form id="f" novalidate>
     <label>Nick<input id="fNick" maxlength="16" autocomplete="off" spellcheck="false" placeholder="np. Kreska_123"></label>
-    <label>Tier<select id="fTier"></select></label>
+    <label>Punkty<span class="ptsrow"><input id="fPts" type="number" min="0" max="9999" step="1" inputmode="numeric" placeholder="np. 45"><span id="fTierPrev"></span></span></label>
     <label>Region<select id="fReg"></select></label>
     <div class="fa">
      <button class="btn gold" id="fSave" type="submit">Dodaj gracza</button>
@@ -144,8 +154,9 @@
  </div>
 </div>
 
-<script src="wspolne.js"></script>
 <script src="config.js"></script>
+<script src="wspolne.js"></script>
+<script src="kity.js"></script>
 <script src="gracze.js"></script>
 <script type="module" src="app.js"></script>
 </body>

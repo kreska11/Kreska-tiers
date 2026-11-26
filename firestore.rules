@@ -32,14 +32,17 @@ service cloud.firestore {
     }
 
     // Ranking: każdy może czytać, zmieniać tylko właściciel i moderatorzy.
+    // Zapisywane są punkty – tier strona wylicza sama z progów w config.js.
     match /players/{id} {
       allow read: if true;
       allow create, update: if isStaff()
-        && request.resource.data.keys().hasOnly(['nick', 'tier', 'region', 'updatedAt'])
-        && request.resource.data.keys().hasAll(['nick', 'tier', 'region', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['nick', 'points', 'region', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['nick', 'points', 'region', 'updatedAt'])
         && validNick(request.resource.data.nick)
         && id == request.resource.data.nick.lower()
-        && request.resource.data.tier in ['HT1', 'LT1', 'HT2', 'LT2', 'HT3', 'LT3', 'HT4', 'LT4', 'HT5', 'LT5']
+        && request.resource.data.points is int
+        && request.resource.data.points >= 0
+        && request.resource.data.points <= 9999
         && request.resource.data.region in ['EU', 'NA', 'SA', 'AS', 'AU', 'ME', 'AF']
         && request.resource.data.updatedAt == request.time;
       allow delete: if isStaff();
