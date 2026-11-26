@@ -14,6 +14,19 @@ window.KT = (() => {
     return Object.fromEntries(TIERS.map(t => [t, c[t]]));
   })();
   const tierFor = pts => TIERS.find(t => pts >= PROGI[t]) || null;
+  // Tryby rankingu (config.js -> tryby)
+  const DEF_TRYBY = [{ id: 'kreska', nazwa: 'Kreska PvP', ikona: 'logo.png' }];
+  const TRYBY = (() => {
+    const c = window.KT_CONFIG && window.KT_CONFIG.tryby;
+    if (!Array.isArray(c)) return DEF_TRYBY;
+    const seen = new Set(), out = [];
+    c.forEach(t => {
+      if (!t || typeof t.id !== 'string' || !/^[a-z0-9]{1,20}$/.test(t.id) || seen.has(t.id) || typeof t.nazwa !== 'string' || !t.nazwa.trim()) return;
+      seen.add(t.id);
+      out.push({ id: t.id, nazwa: t.nazwa.trim(), ikona: typeof t.ikona === 'string' && /^[A-Za-z0-9_\-\/]+\.(png|jpe?g|webp|gif)$/i.test(t.ikona) ? t.ikona : 'logo.png' });
+    });
+    return out.length ? out : DEF_TRYBY;
+  })();
   const esc = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const tnum = t => t ? +t[2] : 0;
   const title = t => !t ? 'Bez tieru' : t === 'HT1' ? 'Combat Grandmaster' : t === 'LT1' ? 'Combat Master' : TITLES[tnum(t)];
@@ -81,7 +94,7 @@ window.KT = (() => {
   }
   const sort = list => [...list].sort((a, b) => TIERS.indexOf(a.tier) - TIERS.indexOf(b.tier) || a.nick.toLowerCase().localeCompare(b.nick.toLowerCase()));
 
-  return { TIERS, PROGI, tierFor, REG, NICK, esc, tnum, title, tb, reg, avatar, body, genHead, load, sort };
+  return { TIERS, PROGI, tierFor, TRYBY, REG, NICK, esc, tnum, title, tb, reg, avatar, body, genHead, load, sort };
 })();
 
 // Jeśli główny skrypt nie wystartuje (np. brak internetu), pokaż komunikat.

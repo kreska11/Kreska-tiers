@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rubik:wght@700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2026112603">
+<link rel="stylesheet" href="style.css?v=2026112701">
 </head>
 <body>
 <header class="top">
@@ -40,8 +40,8 @@
 <section class="hero" id="hero">
  <div class="wrap">
   <div>
-   <div class="modes"><span class="mode"><img src="logo.png" alt="">Kreska PvP</span></div>
-   <h1 class="rb">Ranking Kreska PvP</h1>
+   <div class="modes" id="modes" role="tablist" aria-label="Tryby"></div>
+   <h1 class="rb" id="hTitle">Ranking</h1>
    <p class="lead">Tiery od HT1 (najlepszy) do LT5. Kliknij gracza, żeby zobaczyć jego profil.</p>
    <div class="stats">
     <div class="stat"><b id="sAll">–</b><span>graczy</span></div>
@@ -79,7 +79,7 @@
 
 <footer>
  <div class="wrap">
-  <span><b>Kreska's tiers</b> · tryb Kreska PvP</span>
+  <span><b>Kreska's tiers</b> · ranking tierów PvP</span>
   <span>Strona nie jest powiązana z Mojang ani Microsoft.</span>
  </div>
 </footer>
@@ -132,8 +132,8 @@
   <div id="paPlayers">
    <form id="f" novalidate>
     <label>Nick<input id="fNick" maxlength="16" autocomplete="off" spellcheck="false" placeholder="np. Kreska_123"></label>
-    <label>Punkty<span class="ptsrow"><input id="fPts" type="number" min="0" max="9999" step="1" inputmode="numeric" placeholder="np. 45"><span id="fTierPrev"></span></span></label>
     <label>Region<select id="fReg"></select></label>
+    <div id="fModes" style="display:contents"></div>
     <div class="fa">
      <button class="btn gold" id="fSave" type="submit">Dodaj gracza</button>
      <button class="btn ghost" id="fCancel" type="button" hidden>Anuluj edycję</button>
@@ -154,10 +154,10 @@
  </div>
 </div>
 
-<script src="config.js?v=2026112603"></script>
-<script src="wspolne.js?v=2026112603"></script>
-<script src="kity.js?v=2026112603"></script>
+<script src="config.js?v=2026112701"></script>
+<script src="wspolne.js?v=2026112701"></script>
+<script src="kity.js?v=2026112701"></script>
 <script src="gracze.js"></script>
-<script type="module" src="app.js?v=2026112603"></script>
+<script type="module" src="app.js?v=2026112701"></script>
 </body>
 </html>

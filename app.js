@@ -5,7 +5,12 @@ import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWith
 import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc, updateDoc, serverTimestamp, writeBatch } from 'https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js';
 
 window.KT_READY = true;
-const { TIERS, PROGI, tierFor, REG, NICK, esc, tnum, title, tb, reg, avatar, body } = window.KT;
+const { TIERS, PROGI, tierFor, TRYBY, REG, NICK, esc, tnum, title, tb, reg, avatar, body } = window.KT;
+const LEGACY = TRYBY.some(t => t.id === 'kreska') ? 'kreska' : TRYBY[0].id; // stare wpisy z jednym wynikiem
+const trybName = id => (TRYBY.find(t => t.id === id) || {}).nazwa || id;
+const nickCmp = (a, b) => a.nick.toLowerCase().localeCompare(b.nick.toLowerCase());
+const bestTier = p => TIERS.find(t => TRYBY.some(m => Object.hasOwn(p.pts, m.id) && tierFor(p.pts[m.id]) === t)) || null;
+const sumPts = p => TRYBY.reduce((s, m) => s + (Object.hasOwn(p.pts, m.id) ? p.pts[m.id] : 0), 0);
 const PTS = /^\d{1,4}$/;
 const CFG = window.KT_CONFIG || {};
 const DOMAIN = 'gracze.kreska-tiers.example.com';
@@ -18,29 +23,48 @@ let me = null;            // { uid, nick, role, owner }
 let users = [], unsubMe = null, unsubUsers = null;
 let creating = false, typedNick = '', repairTried = false;
 let editing = null, busy = false, openNick = null;
+let mode = TRYBY[0].id;
+try { const s = sessionStorage.getItem('kt-tryb'); if (TRYBY.some(t => t.id === s)) mode = s; } catch (e) { /* bez pamięci */ }
 
 /* ---------- widok rankingu ---------- */
 const staff = () => !!me && (me.owner || me.role === 'mod');
 function status(t) { $('status').textContent = t || ''; }
 
+function renderModes() {
+  $('modes').innerHTML = TRYBY.map(t => `<button type="button" role="tab" class="mode" data-mode="${t.id}" aria-selected="${t.id === mode}"><img src="${esc(t.ikona)}" alt="">${esc(t.nazwa)}</button>`).join('');
+  $('hTitle').textContent = 'Ranking ' + trybName(mode);
+}
+$('modes').addEventListener('click', e => {
+  const b = e.target.closest('[data-mode]'); if (!b || b.dataset.mode === mode) return;
+  mode = b.dataset.mode;
+  try { sessionStorage.setItem('kt-tryb', mode); } catch (er) { /* bez pamięci */ }
+  renderModes(); render();
+});
+
 function render() {
-  ranked = [...players].sort((a, b) => b.points - a.points || a.nick.toLowerCase().localeCompare(b.nick.toLowerCase()));
-  ranked.forEach((p, i) => p.rank = i + 1);
+  // pozycje w każdym trybie
+  players.forEach(p => { p.pos = {}; });
+  for (const t of TRYBY) {
+    players.filter(p => Object.hasOwn(p.pts, t.id)).sort((a, b) => b.pts[t.id] - a.pts[t.id] || nickCmp(a, b)).forEach((p, i) => { p.pos[t.id] = i + 1; });
+  }
+  ranked = players.filter(p => Object.hasOwn(p.pts, mode)).sort((a, b) => p_(a) - p_(b));
+  function p_(p) { return p.pos[mode]; }
   const q = query.toLowerCase();
   const list = q ? ranked.filter(p => p.nick.toLowerCase().includes(q)) : ranked;
   $('sAll').textContent = loaded ? ranked.length : '–';
-  $('sT1').textContent = loaded ? ranked.filter(p => tnum(p.tier) === 1).length : '–';
+  $('sT1').textContent = loaded ? ranked.filter(p => tnum(tierFor(p.pts[mode])) === 1).length : '–';
   $('sTop').textContent = ranked[0] ? ranked[0].nick : '–';
-  if (!loaded && !list.length) return;
-  $('rows').innerHTML = list.length ? list.map(p => `<button class="row" type="button" data-nick="${esc(p.nick)}">
-    <span class="rk${p.rank < 4 ? ' r' + p.rank : ''}">${p.rank}</span>
-    <span class="who">${avatar(p.nick)}<span><b>${esc(p.nick)}</b><small>${p.points} pkt · ${title(p.tier)}</small></span></span>
-    ${reg(p.region)}${tb(p.tier)}</button>`).join('')
-    : `<div class="empty">${q ? `<b>Brak wyników</b>Nie ma gracza z „${esc(query)}” w nicku.` : '<b>Ranking jest pusty</b>Gracze pojawią się tu wkrótce.'}</div>`;
   if (!$('aOv').hidden) renderPanel();
   if (!$('meOv').hidden) renderMe();
-  if (openNick && !$('pOv').hidden) ranked.some(p => p.nick === openNick) ? showPlayer(openNick) : closeOv($('pOv'));
+  if (openNick && !$('pOv').hidden) players.some(p => p.nick === openNick) ? showPlayer(openNick) : closeOv($('pOv'));
+  if (!loaded && !list.length) return;
+  $('rows').innerHTML = list.length ? list.map(p => { const v = p.pts[mode], t = tierFor(v), r = p.pos[mode]; return `<button class="row" type="button" data-nick="${esc(p.nick)}">
+    <span class="rk${r < 4 ? ' r' + r : ''}">${r}</span>
+    <span class="who">${avatar(p.nick)}<span><b>${esc(p.nick)}</b><small>${v} pkt · ${title(t)}</small></span></span>
+    ${reg(p.region)}${tb(t)}</button>`; }).join('')
+    : `<div class="empty">${q ? `<b>Brak wyników</b>Nie ma gracza z „${esc(query)}” w nicku w trybie ${esc(trybName(mode))}.` : `<b>Ranking jest pusty</b>W trybie ${esc(trybName(mode))} nie ma jeszcze graczy.`}</div>`;
 }
+renderModes();
 
 $('guide').innerHTML = [1, 2, 3, 4, 5].map(n => `<div class="gt t${n}"><h3 class="rb">Tier ${n}</h3>
   <div class="pair"><div>${tb('HT' + n)}<span class="pts">od ${PROGI['HT' + n]} pkt</span></div><div>${tb('LT' + n)}<span class="pts">od ${PROGI['LT' + n]} pkt</span></div></div>
@@ -58,12 +82,18 @@ function closeOv(ov) {
 document.querySelectorAll('.ov').forEach(ov => ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-close]')) closeOv(ov); }));
 document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.ov').forEach(closeOv); });
 
+function modeRows(p) {
+  return TRYBY.map(t => {
+    const has = Object.hasOwn(p.pts, t.id), v = p.pts[t.id];
+    return `<div class="pmode"><span><img src="${esc(t.ikona)}" alt="">${esc(t.nazwa)}</span><span class="pmeta">${has ? `${v} pkt · #${p.pos[t.id]}` : 'brak'}</span>${tb(has ? tierFor(v) : null)}</div>`;
+  }).join('');
+}
 function showPlayer(nick) {
-  const p = ranked.find(x => x.nick === nick); if (!p) return;
+  const p = players.find(x => x.nick === nick); if (!p) return;
   openNick = nick;
-  $('prof').innerHTML = `${avatar(p.nick)}<h2 class="rb" id="pName">${esc(p.nick)}</h2><p class="ttl">${title(p.tier)}</p>
-    <div class="pg"><div><span>Pozycja</span><b>#${p.rank}</b></div><div><span>Punkty</span><b>${p.points}</b></div><div><span>Region</span><b>${REG[p.region][0]}</b></div></div>
-    <div class="pmode"><span><img src="logo.png" alt="">Kreska PvP</span>${tb(p.tier)}</div>
+  $('prof').innerHTML = `${avatar(p.nick)}<h2 class="rb" id="pName">${esc(p.nick)}</h2><p class="ttl">${title(bestTier(p))}</p>
+    <div class="pg two"><div><span>Punkty razem</span><b>${sumPts(p)}</b></div><div><span>Region</span><b>${REG[p.region][0]}</b></div></div>
+    <div style="margin-top:12px">${modeRows(p)}</div>
     <a class="nmc" href="https://namemc.com/profile/${encodeURIComponent(p.nick)}" target="_blank" rel="noopener noreferrer">Zobacz na NameMC →</a>`;
   if ($('pOv').hidden) openOv($('pOv'));
 }
@@ -71,8 +101,9 @@ $('rows').addEventListener('click', e => { const b = e.target.closest('.row'); i
 $('q').addEventListener('input', e => { query = e.target.value.trim(); render(); });
 $('q').addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
+  e.preventDefault(); // bez tego ten sam Enter od razu „kliknąłby” przycisk zamykania profilu
   const q = query.toLowerCase();
-  const p = ranked.find(x => x.nick.toLowerCase() === q) || ranked.find(x => x.nick.toLowerCase().includes(q));
+  const p = ranked.find(x => x.nick.toLowerCase() === q) || ranked.find(x => x.nick.toLowerCase().includes(q)) || players.find(x => x.nick.toLowerCase() === q);
   if (q && p) showPlayer(p.nick);
 });
 
@@ -99,10 +130,14 @@ if (db) {
     players = [];
     snap.forEach(d => {
       const x = d.data() || {};
-      // Punkty; stare wpisy z samym tierem dostają punkty progu tego tieru.
-      const points = Number.isInteger(x.points) && x.points >= 0 && x.points <= 9999 ? x.points : TIERS.includes(x.tier) ? PROGI[x.tier] : null;
-      if (typeof x.nick === 'string' && NICK.test(x.nick) && points !== null)
-        players.push({ id: d.id, nick: x.nick, points, tier: tierFor(points), region: Object.hasOwn(REG, x.region) ? x.region : 'EU' });
+      // Punkty w trybach. Stare wpisy (jeden wynik albo sam tier) trafiają do trybu Kreska PvP.
+      const ok = v => Number.isInteger(v) && v >= 0 && v <= 9999;
+      const pts = {};
+      if (x.pts && typeof x.pts === 'object') { for (const t of TRYBY) if (ok(x.pts[t.id])) pts[t.id] = x.pts[t.id]; }
+      else if (ok(x.points)) pts[LEGACY] = x.points;
+      else if (TIERS.includes(x.tier)) pts[LEGACY] = PROGI[x.tier];
+      if (typeof x.nick === 'string' && NICK.test(x.nick) && Object.keys(pts).length)
+        players.push({ id: d.id, nick: x.nick, pts, pos: {}, region: Object.hasOwn(REG, x.region) ? x.region : 'EU' });
     });
     if (!snap.metadata.fromCache) { loaded = true; clearTimeout(timer); if (/bazą/.test($('status').textContent)) status(''); }
     render();
@@ -126,9 +161,9 @@ function authError(e) {
   return 'Coś poszło nie tak' + (c ? ' (' + c + ')' : '') + '.';
 }
 
-let mode = 'login';
+let authMode = 'login';
 function setMode(m) {
-  mode = m;
+  authMode = m;
   const reg = m === 'register';
   $('tabLogin').setAttribute('aria-selected', String(!reg));
   $('tabReg').setAttribute('aria-selected', String(reg));
@@ -151,14 +186,14 @@ $('authF').addEventListener('submit', async e => {
   const nick = $('aNick').value.trim(), pass = $('aPass').value, pass2 = $('aPass2').value;
   const msg = t => { $('aMsg').textContent = t; };
   if (!NICK.test(nick)) return msg('Nick musi mieć 3–16 znaków: litery, cyfry lub _.');
-  if (mode === 'register') {
+  if (authMode === 'register') {
     if (pass.length < 8) return msg('Hasło musi mieć co najmniej 8 znaków.');
     if (pass !== pass2) return msg('Hasła nie są takie same.');
   } else if (!pass) return msg('Wpisz hasło.');
   busy = true; $('aSubmit').disabled = true; msg('');
   typedNick = nick;
   try {
-    if (mode === 'register') {
+    if (authMode === 'register') {
       creating = true;
       const cred = await createUserWithEmailAndPassword(auth, emailOf(nick), pass);
       try {
@@ -224,20 +259,23 @@ if (auth) onAuthStateChanged(auth, user => {
 /* ---------- mój profil ---------- */
 function renderMe() {
   if (!me) return;
-  const p = ranked.find(x => x.nick.toLowerCase() === me.nick.toLowerCase());
+  const p = players.find(x => x.nick.toLowerCase() === me.nick.toLowerCase());
+  const best = p ? bestTier(p) : null;
   const role = me.owner ? '<span class="role owner">Właściciel</span>' : me.role === 'mod' ? '<span class="role mod">Moderator</span>' : '<span class="role">Gracz</span>';
   $('meProf').innerHTML = `<div class="bodywrap">${body(me.nick)}</div>
     <h2 class="rb" id="meName">${esc(me.nick)}</h2>${role}
-    ${p && p.tier ? `<p class="ttl" style="margin-top:10px">${title(p.tier)}</p>
-      <div class="pg"><div><span>Pozycja</span><b>#${p.rank}</b></div><div><span>Punkty</span><b>${p.points}</b></div><div><span>Region</span><b>${REG[p.region][0]}</b></div></div>
-      <div class="pmode"><span><img src="logo.png" alt="">Kreska PvP</span>${tb(p.tier)}</div>`
-    : `<div class="notier" style="margin-top:14px"><b>Nie masz jeszcze tiera</b>${p ? `Masz ${p.points} pkt – pierwszy tier (LT5) jest od ${PROGI.LT5} pkt.` : 'Gdy zostaniesz przetestowany, Twój tier pojawi się tutaj.'}</div>`}`;
+    ${p && best ? `<p class="ttl" style="margin-top:10px">${title(best)}</p>
+      <div class="pg two"><div><span>Punkty razem</span><b>${sumPts(p)}</b></div><div><span>Region</span><b>${REG[p.region][0]}</b></div></div>
+      <div style="margin-top:12px">${modeRows(p)}</div>`
+    : `<div class="notier" style="margin-top:14px"><b>Nie masz jeszcze tiera</b>${p ? `Masz za mało punktów – pierwszy tier (LT5) jest od ${PROGI.LT5} pkt.` : 'Gdy zostaniesz przetestowany, Twój tier pojawi się tutaj.'}</div>`}`;
 }
 $('meBtn').addEventListener('click', () => { renderMe(); openOv($('meOv')); });
 
 /* ---------- panel ---------- */
-function tierPrev() { const v = $('fPts').value.trim(); $('fTierPrev').innerHTML = PTS.test(v) ? tb(tierFor(+v)) : ''; }
-$('fPts').addEventListener('input', tierPrev);
+$('fModes').innerHTML = TRYBY.map(t => `<label>${esc(t.nazwa)} – punkty<span class="ptsrow"><input data-mode="${t.id}" type="number" min="0" max="9999" step="1" inputmode="numeric" placeholder="puste = nie gra"><span class="tprev"></span></span></label>`).join('');
+const ptsInputs = () => [...$('fModes').querySelectorAll('input[data-mode]')];
+function tierPrev() { ptsInputs().forEach(i => { const v = i.value.trim(); i.nextElementSibling.innerHTML = PTS.test(v) ? tb(tierFor(+v)) : ''; }); }
+$('fModes').addEventListener('input', tierPrev);
 $('fReg').innerHTML = Object.keys(REG).map(k => `<option value="${k}">${k} · ${REG[k][0]}</option>`).join('');
 function fmsg(t, err) { $('fMsg').textContent = t; $('fMsg').classList.toggle('err', !!err); }
 function resetForm() { editing = null; $('f').reset(); tierPrev(); $('fSave').textContent = 'Dodaj gracza'; $('fCancel').hidden = true; }
@@ -252,7 +290,8 @@ $('ptPerms').addEventListener('click', () => showTab('perms'));
 
 const oldList = () => (window.KT.load().list);
 function renderPanel() {
-  $('al').innerHTML = ranked.length ? ranked.map(p => `<li>${avatar(p.nick)}<b>${esc(p.nick)}</b><span class="rl">${p.points} pkt</span>${tb(p.tier)}
+  const all = [...players].sort(nickCmp);
+  $('al').innerHTML = all.length ? all.map(p => `<li>${avatar(p.nick)}<span class="pl"><b>${esc(p.nick)}</b><small>${TRYBY.filter(t => Object.hasOwn(p.pts, t.id)).map(t => `${esc(t.nazwa)}: ${p.pts[t.id]} pkt (${tierFor(p.pts[t.id]) || 'bez tieru'})`).join(' · ')}</small></span>
     <button class="sm" type="button" data-edit="${esc(p.nick)}">Edytuj</button>
     <button class="sm del" type="button" data-del="${esc(p.nick)}">Usuń</button></li>`).join('') : '<li>Brak graczy w rankingu.</li>';
   const old = oldList();
@@ -272,18 +311,25 @@ $('fCancel').addEventListener('click', () => { resetForm(); fmsg(''); });
 $('f').addEventListener('submit', async e => {
   e.preventDefault();
   if (busy || !staff()) return;
-  const nick = $('fNick').value.trim(), ptsTxt = $('fPts').value.trim(), region = $('fReg').value;
+  const nick = $('fNick').value.trim(), region = $('fReg').value;
   if (!NICK.test(nick)) return fmsg('Nick musi mieć 3–16 znaków: litery, cyfry lub _.', true);
-  if (!PTS.test(ptsTxt)) return fmsg('Wpisz punkty: liczba całkowita od 0 do 9999.', true);
   if (!Object.hasOwn(REG, region)) return fmsg('Wybierz region.', true);
-  const points = +ptsTxt, tier = tierFor(points);
+  const pts = {};
+  for (const i of ptsInputs()) {
+    const v = i.value.trim();
+    if (v === '') continue;
+    if (!PTS.test(v)) return fmsg(trybName(i.dataset.mode) + ': punkty muszą być liczbą całkowitą od 0 do 9999.', true);
+    pts[i.dataset.mode] = +v;
+  }
+  if (!Object.keys(pts).length) return fmsg('Wpisz punkty przynajmniej w jednym trybie.', true);
+  const summary = TRYBY.filter(t => Object.hasOwn(pts, t.id)).map(t => `${t.nazwa} ${pts[t.id]} pkt (${tierFor(pts[t.id]) || 'bez tieru'})`).join(', ');
   const id = nick.toLowerCase();
   const exists = players.find(p => p.id === id);
   const oldId = editing ? editing.toLowerCase() : null;
   if (editing && id !== oldId && exists) return fmsg('Gracz ' + exists.nick + ' już jest w rankingu.', true);
   busy = true; $('fSave').disabled = true;
   try {
-    const data = { nick, points, region, updatedAt: serverTimestamp() };
+    const data = { nick, pts, region, updatedAt: serverTimestamp() };
     if (editing && id !== oldId) {
       const b = writeBatch(db);
       b.set(doc(db, 'players', id), data);
@@ -292,7 +338,7 @@ $('f').addEventListener('submit', async e => {
     } else {
       await setDoc(doc(db, 'players', id), data);
     }
-    fmsg((editing || exists ? 'Zapisano: ' : 'Dodano: ') + nick + ' – ' + points + ' pkt (' + (tier || 'bez tieru') + ')');
+    fmsg((editing || exists ? 'Zapisano: ' : 'Dodano: ') + nick + ' – ' + summary);
     resetForm(); $('fNick').focus();
   } catch (err) { fmsg(authError(err), true); }
   finally { busy = false; $('fSave').disabled = false; }
@@ -301,8 +347,9 @@ $('f').addEventListener('submit', async e => {
 $('al').addEventListener('click', async e => {
   const ed = e.target.closest('[data-edit]'), del = e.target.closest('[data-del]');
   if (ed) {
-    const p = ranked.find(x => x.nick === ed.dataset.edit); if (!p) return;
-    editing = p.nick; $('fNick').value = p.nick; $('fPts').value = p.points; tierPrev(); $('fReg').value = p.region;
+    const p = players.find(x => x.nick === ed.dataset.edit); if (!p) return;
+    editing = p.nick; $('fNick').value = p.nick; $('fReg').value = p.region;
+    ptsInputs().forEach(i => { i.value = Object.hasOwn(p.pts, i.dataset.mode) ? p.pts[i.dataset.mode] : ''; }); tierPrev();
     $('fSave').textContent = 'Zapisz zmiany'; $('fCancel').hidden = false; fmsg('Edytujesz: ' + p.nick); $('fNick').focus();
   }
   if (del && !busy) {
@@ -325,7 +372,7 @@ $('importBtn').addEventListener('click', async () => {
   try {
     for (let i = 0; i < old.length; i += 400) {
       const b = writeBatch(db);
-      old.slice(i, i + 400).forEach(p => b.set(doc(db, 'players', p.nick.toLowerCase()), { nick: p.nick, points: PROGI[p.tier], region: p.region, updatedAt: serverTimestamp() }));
+      old.slice(i, i + 400).forEach(p => b.set(doc(db, 'players', p.nick.toLowerCase()), { nick: p.nick, pts: { [LEGACY]: PROGI[p.tier] }, region: p.region, updatedAt: serverTimestamp() }));
       await b.commit();
     }
     fmsg('Zaimportowano ' + old.length + ' graczy. Teraz możesz usunąć plik gracze.js z GitHuba.');

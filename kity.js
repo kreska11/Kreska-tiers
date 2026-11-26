@@ -40,5 +40,42 @@ window.KITY = [
         ]
       }
     ]
+  },
+  {
+    nazwa: "Iron OP Pot",
+    ikona: "tryby/iron-op-pot.png",
+    przedmioty: {
+      "Iron Helmet": ["Protection II"],
+      "Iron Chestplate": ["Protection II"],
+      "Iron Leggings": ["Protection III"],
+      "Iron Boots": ["Protection III"],
+      "Diamond Sword": ["Sharpness V", "Unbreaking III"],
+      "Diamond Axe": ["Sharpness V", "Unbreaking III"],
+      "Diamond Pickaxe": ["Efficiency V", "Unbreaking III"],
+      "Bow": ["Power V", "Punch II", "Unbreaking III"],
+      "Crossbow": ["Piercing IV", "Unbreaking III"],
+      "Arrow of Harming": ["Instant Damage II"]
+    },
+    obrazki: [
+      {
+        plik: "kity/iron-op-pot-zbroja.png",
+        opis: "Zbroja i druga ręka",
+        x: [0, 40, 84, 128, 172], y: [0], slot: 40,
+        sloty: [
+          ["Iron Helmet", "Iron Chestplate", "Iron Leggings", "Iron Boots", "Totem of Undying"]
+        ]
+      },
+      {
+        plik: "kity/iron-op-pot-ekwipunek.png",
+        opis: "Ekwipunek",
+        x: [2, 46, 90, 134, 178, 222, 266, 310, 354], y: [2, 46, 90, 143], slot: 44,
+        sloty: [
+          ["Totem of Undying", "Totem of Undying", "Totem of Undying", "Splash Potion of Healing", "Splash Potion of Healing", "Splash Potion of Healing", "Splash Potion of Healing", "Splash Potion of Healing", "Splash Potion of Strength"],
+          ["Arrow of Harming", "Splash Potion of Healing", "Splash Potion of Healing", "Splash Potion of Healing", "Splash Potion of Healing", "Splash Potion of Healing", "Splash Potion of Healing", "Splash Potion of Healing", "Splash Potion of Strength"],
+          ["Diamond Pickaxe", "Splash Potion of Healing", "Splash Potion of Healing", "Splash Potion of Healing", "Splash Potion of Healing", "Splash Potion of Healing", "Splash Potion of Healing", "Crossbow", "Splash Potion of Strength"],
+          ["Diamond Sword", "Diamond Axe", "Splash Potion of Healing", "Splash Potion of Healing", "Splash Potion of Strength", "Shield", "Golden Apple", "Bow", "Cobblestone"]
+        ]
+      }
+    ]
   }
 ];

@@ -36,6 +36,17 @@ button,input,select{font:inherit;color:inherit}
 .modes{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
 .mode{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:0 18px 0 10px;border-radius:12px;background:var(--panel2);border:1px solid rgba(255,195,26,.55);box-shadow:inset 0 -3px 0 var(--gold);font-weight:700}
 .mode img{width:28px;height:28px}
+button.mode{cursor:pointer;color:var(--mut);background:var(--panel);border-color:var(--line);box-shadow:none}
+button.mode:hover{color:var(--ink);background:var(--panel2)}
+button.mode[aria-selected=true]{color:var(--ink);background:var(--panel2);border-color:rgba(255,195,26,.55);box-shadow:inset 0 -3px 0 var(--gold)}
+.pg.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.pmeta{margin-left:auto;color:var(--mut);font-size:14px;white-space:nowrap}
+.pmode+.pmode{margin-top:6px}
+.al .pl{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.al .pl b{flex:none}
+.al .pl small{color:var(--mut);font-size:13px;line-height:1.35}
+#f{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+#f>label:first-child{grid-column:span 2}
 h1{font-size:clamp(32px,5vw,50px);line-height:1.05;margin:0 0 10px;text-wrap:balance}
 .lead{color:var(--mut);margin:0 0 20px;max-width:60ch}
 .stats{display:flex;gap:10px;flex-wrap:wrap}
