@@ -23,16 +23,23 @@ let me = null;            // { uid, nick, role, owner }
 let users = [], unsubMe = null, unsubUsers = null;
 let creating = false, typedNick = '', repairTried = false;
 let editing = null, busy = false, openNick = null;
-let mode = TRYBY[0].id;
-try { const s = sessionStorage.getItem('kt-tryb'); if (TRYBY.some(t => t.id === s)) mode = s; } catch (e) { /* bez pamięci */ }
+const OVERALL = 'ogolny';
+let mode = OVERALL; // 'ogolny' albo id trybu
+try { const s = sessionStorage.getItem('kt-tryb'); if (s === OVERALL || TRYBY.some(t => t.id === s)) mode = s; } catch (e) { /* bez pamięci */ }
+const OVERALL_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#ffc31a" d="M6 3h12v3h3v3a5 5 0 0 1-5 5h-.3A5 5 0 0 1 13 16.9V19h3v2H8v-2h3v-2.1A5 5 0 0 1 8.3 14H8a5 5 0 0 1-5-5V6h3V3Zm0 5H5v1a3 3 0 0 0 1.4 2.5A5 5 0 0 1 6 10V8Zm12 0v2c0 .5 0 1-.2 1.5A3 3 0 0 0 19 9V8h-1Z"/></svg>';
 
 /* ---------- widok rankingu ---------- */
 const staff = () => !!me && (me.owner || me.role === 'mod');
 function status(t) { $('status').textContent = t || ''; }
 
 function renderModes() {
-  $('modes').innerHTML = TRYBY.map(t => `<button type="button" role="tab" class="mode" data-mode="${t.id}" aria-selected="${t.id === mode}"><img src="${esc(t.ikona)}" alt="">${esc(t.nazwa)}</button>`).join('');
-  $('hTitle').textContent = 'Ranking ' + trybName(mode);
+  const tabs = [{ id: OVERALL, nazwa: 'Ogólny', icon: OVERALL_ICON }].concat(TRYBY.map(m => ({ id: m.id, nazwa: m.nazwa, icon: `<img src="${esc(m.ikona)}" alt="">` })));
+  $('modes').innerHTML = tabs.map(m => `<button type="button" role="tab" class="mode" data-mode="${m.id}" aria-selected="${m.id === mode}">${m.icon}${esc(m.nazwa)}</button>`).join('');
+  $('hTitle').textContent = 'Ranking';
+  $('hLead').textContent = mode === OVERALL
+    ? 'Ranking ogólny: punkty ze wszystkich trybów się sumują. Kliknij gracza, żeby zobaczyć jego profil.'
+    : `${trybName(mode)}: gracze podzieleni na tiery od Tier 1 (najlepsi) do Tier 5. Kliknij gracza, żeby zobaczyć jego profil.`;
+  $('sT1l').textContent = mode === OVERALL ? 'trybów' : 'w Tier 1';
 }
 $('modes').addEventListener('click', e => {
   const b = e.target.closest('[data-mode]'); if (!b || b.dataset.mode === mode) return;
@@ -42,27 +49,38 @@ $('modes').addEventListener('click', e => {
 });
 
 function render() {
-  // pozycje w każdym trybie
-  players.forEach(p => { p.pos = {}; });
+  // pozycje w każdym trybie i w rankingu ogólnym
+  players.forEach(p => { p.pos = {}; p.total = sumPts(p); });
   for (const t of TRYBY) {
     players.filter(p => Object.hasOwn(p.pts, t.id)).sort((a, b) => b.pts[t.id] - a.pts[t.id] || nickCmp(a, b)).forEach((p, i) => { p.pos[t.id] = i + 1; });
   }
-  ranked = players.filter(p => Object.hasOwn(p.pts, mode)).sort((a, b) => p_(a) - p_(b));
-  function p_(p) { return p.pos[mode]; }
+  const overall = [...players].sort((a, b) => b.total - a.total || nickCmp(a, b));
+  overall.forEach((p, i) => { p.opos = i + 1; });
+  const isAll = mode === OVERALL;
+  ranked = isAll ? overall : players.filter(p => Object.hasOwn(p.pts, mode)).sort((a, b) => a.pos[mode] - b.pos[mode]);
   const q = query.toLowerCase();
   const list = q ? ranked.filter(p => p.nick.toLowerCase().includes(q)) : ranked;
   $('sAll').textContent = loaded ? ranked.length : '–';
-  $('sT1').textContent = loaded ? ranked.filter(p => tnum(tierFor(p.pts[mode])) === 1).length : '–';
+  $('sT1').textContent = isAll ? TRYBY.length : loaded ? ranked.filter(p => tnum(tierFor(p.pts[mode])) === 1).length : '–';
   $('sTop').textContent = ranked[0] ? ranked[0].nick : '–';
   if (!$('aOv').hidden) renderPanel();
   if (!$('meOv').hidden) renderMe();
   if (openNick && !$('pOv').hidden) players.some(p => p.nick === openNick) ? showPlayer(openNick) : closeOv($('pOv'));
+  $('listWrap').hidden = !isAll;
+  $('cols').hidden = isAll;
   if (!loaded && !list.length) return;
-  $('rows').innerHTML = list.length ? list.map(p => { const v = p.pts[mode], t = tierFor(v), r = p.pos[mode]; return `<button class="row" type="button" data-nick="${esc(p.nick)}">
-    <span class="rk${r < 4 ? ' r' + r : ''}">${r}</span>
-    <span class="who">${avatar(p.nick)}<span><b>${esc(p.nick)}</b><small>${v} pkt · ${title(t)}</small></span></span>
-    ${reg(p.region)}${tb(t)}</button>`; }).join('')
-    : `<div class="empty">${q ? `<b>Brak wyników</b>Nie ma gracza z „${esc(query)}” w nicku w trybie ${esc(trybName(mode))}.` : `<b>Ranking jest pusty</b>W trybie ${esc(trybName(mode))} nie ma jeszcze graczy.`}</div>`;
+  if (isAll) {
+    $('rows').innerHTML = list.length ? list.map(p => { const r = p.opos; return `<button class="row" type="button" data-nick="${esc(p.nick)}">
+      <span class="rk${r < 4 ? ' r' + r : ''}">${r}</span>
+      <span class="who">${avatar(p.nick)}<span><b>${esc(p.nick)}</b><small>${TRYBY.filter(m => Object.hasOwn(p.pts, m.id)).map(m => `${esc(m.nazwa)} ${p.pts[m.id]}`).join(' · ')}</small></span></span>
+      ${reg(p.region)}<span class="ptsc">${p.total} pkt</span></button>`; }).join('')
+      : `<div class="empty">${q ? `<b>Brak wyników</b>Nie ma gracza z „${esc(query)}” w nicku.` : '<b>Ranking jest pusty</b>Gracze pojawią się tu wkrótce.'}</div>`;
+  } else {
+    $('cols').innerHTML = [1, 2, 3, 4, 5].map(n => {
+      const ps = list.filter(p => tnum(tierFor(p.pts[mode])) === n);
+      return `<div class="col t${n}"><h2 class="rb">Tier ${n}<small>${ps.length}</small></h2><ul>${ps.length ? ps.map(p => { const v = p.pts[mode]; return `<li><button type="button" data-nick="${esc(p.nick)}">${avatar(p.nick)}<span class="cn"><b>${esc(p.nick)}</b><small>${v} pkt</small></span>${tb(tierFor(v))}</button></li>`; }).join('') : `<li class="none">${q ? 'Brak wyników' : 'Brak graczy'}</li>`}</ul></div>`;
+    }).join('');
+  }
 }
 renderModes();
 
@@ -92,12 +110,13 @@ function showPlayer(nick) {
   const p = players.find(x => x.nick === nick); if (!p) return;
   openNick = nick;
   $('prof').innerHTML = `${avatar(p.nick)}<h2 class="rb" id="pName">${esc(p.nick)}</h2><p class="ttl">${title(bestTier(p))}</p>
-    <div class="pg two"><div><span>Punkty razem</span><b>${sumPts(p)}</b></div><div><span>Region</span><b>${REG[p.region][0]}</b></div></div>
+    <div class="pg"><div><span>Miejsce ogólne</span><b>#${p.opos}</b></div><div><span>Punkty razem</span><b>${p.total}</b></div><div><span>Region</span><b>${REG[p.region][0]}</b></div></div>
     <div style="margin-top:12px">${modeRows(p)}</div>
     <a class="nmc" href="https://namemc.com/profile/${encodeURIComponent(p.nick)}" target="_blank" rel="noopener noreferrer">Zobacz na NameMC →</a>`;
   if ($('pOv').hidden) openOv($('pOv'));
 }
 $('rows').addEventListener('click', e => { const b = e.target.closest('.row'); if (b) showPlayer(b.dataset.nick); });
+$('cols').addEventListener('click', e => { const b = e.target.closest('[data-nick]'); if (b) showPlayer(b.dataset.nick); });
 $('q').addEventListener('input', e => { query = e.target.value.trim(); render(); });
 $('q').addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
@@ -272,13 +291,27 @@ function renderMe() {
 $('meBtn').addEventListener('click', () => { renderMe(); openOv($('meOv')); });
 
 /* ---------- panel ---------- */
-$('fModes').innerHTML = TRYBY.map(t => `<label>${esc(t.nazwa)} – punkty<span class="ptsrow"><input data-mode="${t.id}" type="number" min="0" max="9999" step="1" inputmode="numeric" placeholder="puste = nie gra"><span class="tprev"></span></span></label>`).join('');
-const ptsInputs = () => [...$('fModes').querySelectorAll('input[data-mode]')];
-function tierPrev() { ptsInputs().forEach(i => { const v = i.value.trim(); i.nextElementSibling.innerHTML = PTS.test(v) ? tb(tierFor(+v)) : ''; }); }
-$('fModes').addEventListener('input', tierPrev);
+$('fMode').innerHTML = TRYBY.map(t => `<option value="${t.id}">${esc(t.nazwa)}</option>`).join('');
+function tierPrev() { const v = $('fPts').value.trim(); $('fTierPrev').innerHTML = PTS.test(v) ? tb(tierFor(+v)) : ''; }
+$('fPts').addEventListener('input', tierPrev);
+const editedPlayer = () => editing ? players.find(x => x.nick === editing) : null;
+// Przy zmianie trybu: wpisz punkty gracza w tym trybie (jeśli je ma) i pokaż przycisk „Usuń z tego trybu”
+function syncModeFields() {
+  const p = editedPlayer() || players.find(x => x.id === $('fNick').value.trim().toLowerCase());
+  const m = $('fMode').value;
+  if (p) $('fPts').value = Object.hasOwn(p.pts, m) ? p.pts[m] : '';
+  const ep = editedPlayer();
+  $('fRemoveMode').hidden = !(ep && Object.hasOwn(ep.pts, m));
+  tierPrev();
+}
+$('fMode').addEventListener('change', syncModeFields);
 $('fReg').innerHTML = Object.keys(REG).map(k => `<option value="${k}">${k} · ${REG[k][0]}</option>`).join('');
 function fmsg(t, err) { $('fMsg').textContent = t; $('fMsg').classList.toggle('err', !!err); }
-function resetForm() { editing = null; $('f').reset(); tierPrev(); $('fSave').textContent = 'Dodaj gracza'; $('fCancel').hidden = true; }
+function resetForm() {
+  const keep = $('fMode').value;
+  editing = null; $('f').reset(); $('fMode').value = keep; tierPrev();
+  $('fSave').textContent = 'Zapisz'; $('fCancel').hidden = true; $('fRemoveMode').hidden = true;
+}
 function showTab(t) {
   const perms = t === 'perms' && me && me.owner;
   $('ptPlayers').setAttribute('aria-selected', String(!perms));
@@ -305,8 +338,24 @@ function renderPanel() {
     }).join('') : '<li>Nikt się jeszcze nie zarejestrował.</li>';
   }
 }
-$('panelBtn').addEventListener('click', () => { if (!staff()) return; renderPanel(); fmsg(''); showTab('players'); openOv($('aOv')); $('fNick').focus(); });
+$('panelBtn').addEventListener('click', () => {
+  if (!staff()) return;
+  if (!editing && mode !== OVERALL) $('fMode').value = mode;
+  renderPanel(); fmsg(''); showTab('players'); openOv($('aOv')); $('fNick').focus();
+});
 $('fCancel').addEventListener('click', () => { resetForm(); fmsg(''); });
+$('fRemoveMode').addEventListener('click', async () => {
+  const p = editedPlayer(), m = $('fMode').value;
+  if (!p || busy || !staff() || !Object.hasOwn(p.pts, m)) return;
+  const pts = Object.assign({}, p.pts); delete pts[m];
+  if (!Object.keys(pts).length) return fmsg(p.nick + ' gra tylko w tym trybie – żeby go usunąć, użyj „Usuń” na liście.', true);
+  busy = true; $('fRemoveMode').disabled = true;
+  try {
+    await setDoc(doc(db, 'players', p.id), { nick: p.nick, pts, region: p.region, updatedAt: serverTimestamp() });
+    fmsg('Usunięto ' + p.nick + ' z trybu ' + trybName(m) + '.'); resetForm();
+  } catch (err) { fmsg(authError(err), true); }
+  finally { busy = false; $('fRemoveMode').disabled = false; }
+});
 
 $('f').addEventListener('submit', async e => {
   e.preventDefault();
@@ -314,19 +363,17 @@ $('f').addEventListener('submit', async e => {
   const nick = $('fNick').value.trim(), region = $('fReg').value;
   if (!NICK.test(nick)) return fmsg('Nick musi mieć 3–16 znaków: litery, cyfry lub _.', true);
   if (!Object.hasOwn(REG, region)) return fmsg('Wybierz region.', true);
-  const pts = {};
-  for (const i of ptsInputs()) {
-    const v = i.value.trim();
-    if (v === '') continue;
-    if (!PTS.test(v)) return fmsg(trybName(i.dataset.mode) + ': punkty muszą być liczbą całkowitą od 0 do 9999.', true);
-    pts[i.dataset.mode] = +v;
-  }
-  if (!Object.keys(pts).length) return fmsg('Wpisz punkty przynajmniej w jednym trybie.', true);
-  const summary = TRYBY.filter(t => Object.hasOwn(pts, t.id)).map(t => `${t.nazwa} ${pts[t.id]} pkt (${tierFor(pts[t.id]) || 'bez tieru'})`).join(', ');
+  const m = $('fMode').value, v = $('fPts').value.trim();
+  if (!TRYBY.some(x => x.id === m)) return fmsg('Wybierz tryb.', true);
+  if (!PTS.test(v)) return fmsg('Wpisz punkty: liczba całkowita od 0 do 9999.', true);
   const id = nick.toLowerCase();
   const exists = players.find(p => p.id === id);
   const oldId = editing ? editing.toLowerCase() : null;
   if (editing && id !== oldId && exists) return fmsg('Gracz ' + exists.nick + ' już jest w rankingu.', true);
+  // punkty w innych trybach zostają bez zmian
+  const base = editing ? editedPlayer() : exists;
+  const pts = Object.assign({}, base ? base.pts : {}, { [m]: +v });
+  const summary = `${trybName(m)} ${v} pkt (${tierFor(+v) || 'bez tieru'})`;
   busy = true; $('fSave').disabled = true;
   try {
     const data = { nick, pts, region, updatedAt: serverTimestamp() };
@@ -338,7 +385,7 @@ $('f').addEventListener('submit', async e => {
     } else {
       await setDoc(doc(db, 'players', id), data);
     }
-    fmsg((editing || exists ? 'Zapisano: ' : 'Dodano: ') + nick + ' – ' + summary);
+    fmsg((base ? 'Zapisano: ' : 'Dodano: ') + nick + ' – ' + summary);
     resetForm(); $('fNick').focus();
   } catch (err) { fmsg(authError(err), true); }
   finally { busy = false; $('fSave').disabled = false; }
@@ -349,8 +396,9 @@ $('al').addEventListener('click', async e => {
   if (ed) {
     const p = players.find(x => x.nick === ed.dataset.edit); if (!p) return;
     editing = p.nick; $('fNick').value = p.nick; $('fReg').value = p.region;
-    ptsInputs().forEach(i => { i.value = Object.hasOwn(p.pts, i.dataset.mode) ? p.pts[i.dataset.mode] : ''; }); tierPrev();
-    $('fSave').textContent = 'Zapisz zmiany'; $('fCancel').hidden = false; fmsg('Edytujesz: ' + p.nick); $('fNick').focus();
+    if (!Object.hasOwn(p.pts, $('fMode').value)) $('fMode').value = (TRYBY.find(m => Object.hasOwn(p.pts, m.id)) || TRYBY[0]).id;
+    syncModeFields();
+    $('fSave').textContent = 'Zapisz zmiany'; $('fCancel').hidden = false; fmsg('Edytujesz: ' + p.nick + ' (zmień tryb, żeby edytować punkty w innym trybie)'); $('fNick').focus();
   }
   if (del && !busy) {
     if (!del.classList.contains('armed')) {

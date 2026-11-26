@@ -214,3 +214,21 @@ ol.how li{margin:4px 0}
 .mctip b.en{color:#55ffff}
 .mctip span{color:#aaa}
 .ench span{line-height:1.5}
+
+/* ranking ogólny + kategorie tierów */
+.ptsc{justify-self:center;font-weight:800;white-space:nowrap;color:var(--gold)}
+.mode svg{width:28px;height:28px}
+.cols{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.col{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;align-self:start}
+.col h2{margin:0;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;font-size:20px;color:#12151c;background:var(--c)}
+.col h2 small{font-family:Inter,sans-serif;font-size:13px;font-weight:700;opacity:.75}
+.col ul{list-style:none;margin:0;padding:6px}
+.col li button{width:100%;display:flex;align-items:center;gap:10px;min-height:48px;padding:6px 8px;border:0;border-radius:10px;background:none;cursor:pointer;text-align:left}
+.col li button:hover{background:var(--panel2)}
+.col li .head{width:30px;height:30px}
+.col li .cn{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.col li .cn b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.col li .cn small{color:var(--mut);font-size:13px}
+.col li .tb{font-size:12px;padding:2px 8px}
+.col .none{color:var(--mut);font-size:14px;padding:12px 10px}
+@media(max-width:1000px){.cols{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}}
