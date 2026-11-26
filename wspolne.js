@@ -96,51 +96,125 @@ setTimeout(() => {
   const $ = id => document.getElementById(id);
   const { esc } = window.KT;
   const IMG = /^[A-Za-z0-9_\-\/]+\.(png|jpe?g|webp|gif)$/i;
-  let wybrany = 0;
+  const isNum = v => typeof v === 'number' && isFinite(v) && v >= 0;
+  let wybrany = 0, tip = null, tipSlot = null;
 
   function kity() {
     const raw = Array.isArray(window.KITY) ? window.KITY : [];
     return raw.filter(k => k && typeof k.nazwa === 'string' && k.nazwa.trim());
   }
+  const enchOf = (k, name) => {
+    const p = k.przedmioty && Object.hasOwn(k.przedmioty, name) ? k.przedmioty[name] : null;
+    return Array.isArray(p) ? p.filter(e => typeof e === 'string' && e) : [];
+  };
+
+  // Przedmioty z takimi samymi enchantami w jednym wierszu (np. cała zbroja)
+  function grupuj(list) {
+    const m = new Map();
+    list.forEach(([n, e]) => { const key = e.join('\n'); if (!m.has(key)) m.set(key, [[], e]); m.get(key)[0].push(n); });
+    return [...m.values()];
+  }
+  // Sloty obrazka -> lista {nazwa, x, y, s} w pikselach zrzutu
+  function slotsOf(o) {
+    if (!Array.isArray(o.x) || !Array.isArray(o.y) || !isNum(o.slot) || !Array.isArray(o.sloty)) return [];
+    const out = [];
+    o.sloty.forEach((row, r) => Array.isArray(row) && row.forEach((name, c) => {
+      if (typeof name === 'string' && name && isNum(o.x[c]) && isNum(o.y[r])) out.push({ nazwa: name, x: o.x[c], y: o.y[r], s: o.slot });
+    }));
+    return out;
+  }
+
   function renderKity() {
     const list = kity();
     if (!$('kitPick')) return;
+    hideTip();
     if (!list.length) { $('kitPick').innerHTML = ''; $('kitView').innerHTML = '<div class="empty"><b>Brak kitów</b>Kity pojawią się tu wkrótce.</div>'; return; }
     if (wybrany >= list.length) wybrany = 0;
     $('kitPick').innerHTML = list.map((k, i) => `<button type="button" role="tab" class="kitchip" data-kit="${i}" aria-selected="${i === wybrany}">${typeof k.ikona === 'string' && IMG.test(k.ikona) ? `<img src="${esc(k.ikona)}" alt="">` : ''}${esc(k.nazwa)}</button>`).join('');
     const k = list[wybrany];
     const obrazki = (Array.isArray(k.obrazki) ? k.obrazki : []).filter(o => o && typeof o.plik === 'string' && IMG.test(o.plik));
-    const ench = (Array.isArray(k.enchanty) ? k.enchanty : []).filter(e => e && e.co && e.ench);
+    // Lista enchantów: przedmioty, które mają enchanty, w kolejności z pliku
+    const ench = k.przedmioty && typeof k.przedmioty === 'object' ? Object.keys(k.przedmioty).map(n => [n, enchOf(k, n)]).filter(([, e]) => e.length) : [];
     $('kitView').innerHTML = `<div class="kit">
-      <div class="card kitlook"><h2 class="rb">Wygląd kita</h2>
-        ${obrazki.length ? obrazki.map(o => `<figure class="kitimg"><img src="${esc(o.plik)}" alt="${esc(o.opis || k.nazwa)}" loading="lazy"><figcaption>${esc(o.opis || '')}</figcaption></figure>`).join('') : '<p class="sub">Brak obrazków.</p>'}
+      <div class="card kitlook"><h2 class="rb">Wygląd kita</h2><p class="sub">Najedź na przedmiot (albo go dotknij), żeby zobaczyć nazwę i enchanty.</p>
+        ${obrazki.length ? obrazki.map((o, oi) => `<figure class="kitimg"><div class="kitmap" data-o="${oi}"><img src="${esc(o.plik)}" alt="${esc(o.opis || k.nazwa)}">${slotsOf(o).map((s, si) => `<button type="button" class="slot" data-o="${oi}" data-s="${si}" aria-label="${esc(s.nazwa)}"></button>`).join('')}</div><figcaption>${esc(o.opis || '')}</figcaption></figure>`).join('') : '<p class="sub">Brak obrazków.</p>'}
       </div>
       <div class="card"><h2 class="rb">Enchanty</h2>
-        ${ench.length ? `<ul class="ench">${ench.map(e => `<li><b>${esc(e.co)}</b><span>${esc(e.ench)}</span></li>`).join('')}</ul>` : '<p class="sub">Bez enchantów.</p>'}
+        ${ench.length ? `<ul class="ench">${grupuj(ench).map(([ns, e]) => `<li><b>${ns.map(esc).join('<br>')}</b><span>${e.map(esc).join('<br>')}</span></li>`).join('')}</ul>` : '<p class="sub">Bez enchantów.</p>'}
       </div>
     </div>`;
-    // obrazek w 2x, żeby piksele były ostre
-    $('kitView').querySelectorAll('.kitimg img').forEach(im => {
-      const set = () => { if (im.naturalWidth) im.style.width = (im.naturalWidth * 2) + 'px'; };
+    // Ustaw sloty w procentach (skaluje się razem z obrazkiem) i powiększ obrazek 2x
+    $('kitView').querySelectorAll('.kitmap').forEach(map => {
+      const o = obrazki[+map.dataset.o], im = map.querySelector('img'), sl = slotsOf(o);
+      const set = () => {
+        const W = im.naturalWidth, H = im.naturalHeight; if (!W || !H) return;
+        map.style.width = (W * 2) + 'px';
+        map.querySelectorAll('.slot').forEach(b => {
+          const s = sl[+b.dataset.s];
+          Object.assign(b.style, { left: (s.x / W * 100) + '%', top: (s.y / H * 100) + '%', width: (s.s / W * 100) + '%', height: (Math.min(s.s, H - s.y) / H * 100) + '%' });
+          b.hidden = false;
+        });
+      };
+      map.querySelectorAll('.slot').forEach(b => { b.hidden = true; });
       im.complete ? set() : im.addEventListener('load', set, { once: true });
     });
   }
+
+  // ---------- dymek w stylu Minecrafta ----------
+  function slotData(b) {
+    const k = kity()[wybrany]; if (!k) return null;
+    const o = (k.obrazki || []).filter(o => o && typeof o.plik === 'string' && IMG.test(o.plik))[+b.dataset.o];
+    const s = o && slotsOf(o)[+b.dataset.s];
+    return s ? { nazwa: s.nazwa, ench: enchOf(k, s.nazwa) } : null;
+  }
+  function showTip(b, x, y) {
+    const d = slotData(b); if (!d) return;
+    if (!tip) { tip = document.createElement('div'); tip.className = 'mctip'; tip.setAttribute('role', 'tooltip'); document.body.appendChild(tip); }
+    tip.innerHTML = `<b class="${d.ench.length ? 'en' : ''}">${esc(d.nazwa)}</b>${d.ench.map(e => `<span>${esc(e)}</span>`).join('')}`;
+    tip.hidden = false; tipSlot = b;
+    if (x === undefined) { const r = b.getBoundingClientRect(); x = r.right; y = r.top; }
+    const tw = tip.offsetWidth, th = tip.offsetHeight, vw = document.documentElement.clientWidth, vh = window.innerHeight;
+    let left = x + 14, top = y - th - 6;
+    if (left + tw > vw - 8) left = Math.max(8, x - tw - 14);
+    if (top < 8) top = Math.min(vh - th - 8, y + 18);
+    tip.style.left = left + 'px'; tip.style.top = top + 'px';
+  }
+  function hideTip() { if (tip) tip.hidden = true; tipSlot = null; }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const view = $('kitView');
+    if ($('kitPick')) $('kitPick').addEventListener('click', e => {
+      const b = e.target.closest('[data-kit]'); if (!b) return;
+      wybrany = +b.dataset.kit; renderKity();
+    });
+    if (view) {
+      view.addEventListener('mousemove', e => { const b = e.target.closest('.slot'); b ? showTip(b, e.clientX, e.clientY) : hideTip(); });
+      view.addEventListener('mouseleave', hideTip);
+      view.addEventListener('focusin', e => { const b = e.target.closest('.slot'); if (b) showTip(b); });
+      view.addEventListener('focusout', hideTip);
+      let wasOpen = false;
+      view.addEventListener('pointerdown', e => { const b = e.target.closest('.slot'); wasOpen = !!b && tipSlot === b && tip && !tip.hidden; });
+      view.addEventListener('click', e => {
+        const b = e.target.closest('.slot'); if (!b) return;
+        if (e.pointerType && e.pointerType !== 'mouse' && wasOpen) { hideTip(); wasOpen = false; return; }
+        const r = b.getBoundingClientRect(); showTip(b, r.right, r.top);
+      });
+    }
+    document.addEventListener('click', e => { if (!e.target.closest('.slot')) hideTip(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') hideTip(); });
+    window.addEventListener('scroll', hideTip, { passive: true });
+    const q = $('q');
+    if (q) q.addEventListener('input', () => { if (location.hash === '#kity') location.hash = 'ranking'; });
+    window.addEventListener('hashchange', route);
+    route();
+  });
+
   function route() {
     const k = location.hash === '#kity';
     ['hero', 'vRanking'].forEach(id => { const el = $(id); if (el) el.hidden = k; });
     if ($('vKity')) $('vKity').hidden = !k;
     const nr = $('navRanking'), nk = $('navKity');
     if (nr && nk) { nr.removeAttribute('aria-current'); nk.removeAttribute('aria-current'); (k ? nk : nr).setAttribute('aria-current', 'page'); }
-    if (k) renderKity();
+    if (k) renderKity(); else hideTip();
   }
-  document.addEventListener('DOMContentLoaded', () => {
-    if ($('kitPick')) $('kitPick').addEventListener('click', e => {
-      const b = e.target.closest('[data-kit]'); if (!b) return;
-      wybrany = +b.dataset.kit; renderKity();
-    });
-    const q = $('q');
-    if (q) q.addEventListener('input', () => { if (location.hash === '#kity') location.hash = 'ranking'; });
-    window.addEventListener('hashchange', route);
-    route();
-  });
 })();

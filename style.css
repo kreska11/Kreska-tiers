@@ -181,9 +181,9 @@ ol.how li{margin:4px 0}
 .kitchip:hover{background:var(--panel2)}
 .kitchip[aria-selected=true]{background:var(--panel2);border-color:rgba(255,195,26,.55);box-shadow:inset 0 -3px 0 var(--gold)}
 .kit{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;align-items:start}
-.kitlook{display:grid;gap:16px}
+.kitlook{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
 .kitlook h2,.kit .card h2{margin:0 0 4px}
-.kitimg{margin:0;display:grid;gap:6px}
+.kitimg{margin:0;display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
 .kitimg img{display:block;max-width:100%;height:auto;image-rendering:pixelated;border-radius:6px}
 .kitimg figcaption{font-size:13px;color:var(--mut)}
 .ench{list-style:none;margin:8px 0 0;padding:0}
@@ -192,3 +192,14 @@ ol.how li{margin:4px 0}
 .ench span{color:var(--gold);font-weight:700;text-align:right}
 @media(max-width:900px){.kit{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:600px){.brand{flex:1 1 auto}.nav{margin-right:0}}
+/* mapa slotów i dymek */
+.kitmap{position:relative;max-width:100%;line-height:0}
+.kitmap img{width:100%!important;max-width:100%}
+.slot{position:absolute;padding:0;margin:0;border:0;background:transparent;cursor:pointer;border-radius:2px}
+.slot:hover,.slot:focus-visible{background:rgba(255,255,255,.28)}
+.slot:focus-visible{outline:2px solid var(--gold);outline-offset:0}
+.mctip{position:fixed;z-index:60;pointer-events:none;max-width:280px;padding:6px 9px 7px;background:rgba(16,0,16,.95);border:2px solid #2d0a6b;box-shadow:inset 0 0 0 1px #5000a8,0 6px 18px rgba(0,0,0,.5);border-radius:3px;font:600 14px/1.45 Inter,system-ui,sans-serif;display:grid;gap:1px}
+.mctip b{color:#fff;font-weight:700}
+.mctip b.en{color:#55ffff}
+.mctip span{color:#aaa}
+.ench span{line-height:1.5}
