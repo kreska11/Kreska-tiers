@@ -1,0 +1,115 @@
+KRESKA'S TIERS – konta, logowanie i panel (Firebase + GitHub Pages)
+
+Strona dalej stoi na GitHubie, a konta i ranking trzyma darmowa baza Firebase od Google.
+Zmiany w rankingu może robić TYLKO właściciel i moderatorzy – pilnują tego reguły na serwerze Google,
+których nie da się obejść z przeglądarki. Plan darmowy (Spark) niczego nie kosztuje.
+
+=== CZĘŚĆ 1: Firebase (jednorazowo, ok. 10 minut) ===
+
+1. UTWÓRZ PROJEKT
+   Wejdź na https://console.firebase.google.com i zaloguj się kontem Google.
+   Kliknij przycisk tworzenia nowego projektu, wpisz nazwę np. kreska-tiers, zaakceptuj warunki.
+   Gemini i Google Analytics możesz wyłączyć (nie są potrzebne). Kliknij "Create project" i poczekaj.
+   Jeśli Firebase zaproponuje plan płatny "Blaze" – NIE wybieraj go, darmowy "Spark" wystarczy.
+
+2. WŁĄCZ LOGOWANIE HASŁEM
+   Menu po lewej: Security -> Authentication -> (jeśli trzeba "Get started")
+   -> zakładka "Sign-in method" -> "Email/password" -> włącz PIERWSZY przełącznik -> Save.
+   (Drugiego przełącznika "Email link" NIE włączaj.)
+
+3. UTWÓRZ BAZĘ DANYCH
+   Menu po lewej: Databases & Storage -> Firestore -> "Create database".
+   Jeśli zapyta o edycję – wybierz "Standard".
+   Lokalizacja: europe-central2 (Warszawa) albo eur3 (Europa) – później nie da się jej zmienić.
+   Tryb: "Production mode" (w następnym kroku wkleisz własne reguły) -> "Create".
+
+4. WKLEJ REGUŁY BEZPIECZEŃSTWA
+   W Firestore otwórz zakładkę "Rules". Zaznacz cały tekst w edytorze (Ctrl+A) i usuń.
+   Otwórz plik firestore.rules w Notatniku, skopiuj CAŁOŚĆ (Ctrl+A, Ctrl+C), wklej i kliknij "Publish".
+
+5. DODAJ APLIKACJĘ INTERNETOWĄ
+   Wróć na stronę główną projektu ("Project Overview") i kliknij ikonę </> (Web).
+   Wpisz dowolną nazwę, np. strona, i kliknij "Register app".
+   (Jeśli jest pole "Firebase Hosting" – NIE zaznaczaj go.)
+   Pokaże się kod z "const firebaseConfig = { apiKey: ..., ... };".
+   Skopiuj ten fragment i wyślij go Claude'owi – sam uzupełni config.js.
+   (Albo przepisz te wartości do config.js w miejsca WKLEJ_TUTAJ, zostawiając cudzysłowy.)
+   Później znajdziesz go też w: zębatka -> Project settings -> na dole "Your apps".
+
+Twój nick właściciela to Kreska11. Jeśli chcesz inny, zmień go w DWÓCH miejscach:
+ - config.js: ownerNick: "TwojNick"
+ - firestore.rules: 'twojnick@gracze.kreska-tiers.example.com'  (małymi literami!) i opublikuj reguły ponownie.
+
+=== CZĘŚĆ 2: GitHub ===
+
+8. W repozytorium wgraj (Add file -> Upload files) pliki z tego folderu:
+   index.html, app.js, config.js, wspolne.js, style.css, logo.png, favicon.png  -> Commit changes.
+   (firestore.rules i ten plik nie muszą być na GitHubie.)
+9. Usuń z repozytorium edytor.html (już niepotrzebny). gracze.js zostaw na chwilę – do importu.
+
+=== CZĘŚĆ 3: Pierwsze uruchomienie – ZRÓB TO OD RAZU ===
+
+10. Otwórz stronę i od razu ZAREJESTRUJ SIĘ jako Kreska11. To konto jest właścicielem –
+    zrób to zanim komukolwiek dasz link, żeby nikt nie zajął tego nicku przed Tobą.
+11. Kliknij "Panel" -> na dole "Importuj" – przeniesie graczy ze starego gracze.js do bazy.
+    Potem usuń gracze.js z GitHuba.
+
+=== PUNKTY I TIERY ===
+
+- W panelu wpisujesz graczowi PUNKTY, a tier przypisuje się sam według progów.
+- Progi są w config.js (sekcja "progi"). Domyślnie: HT1 od 60, LT1 od 45, HT2 od 30, LT2 od 20,
+  HT3 od 10, LT3 od 6, HT4 od 4, LT4 od 3, HT5 od 2, LT5 od 1. Poniżej LT5 gracz jest "bez tieru".
+  Każdy próg musi być mniejszy od poprzedniego – inaczej strona użyje domyślnych.
+- Po zmianie progów wystarczy wgrać nowy config.js na GitHuba – punkty graczy zostają, tiery przeliczą się same.
+- WAŻNE przy tej aktualizacji: wklej na nowo CAŁY plik firestore.rules w Firebase
+  (Firestore -> Rules -> Publish), bo reguły zapisują teraz punkty zamiast tierów.
+
+=== TRYBY (Kreska PvP, Iron OP Pot, ...) ===
+
+- Nad rankingiem są zakładki: "Ogólny" (punkty ze wszystkich trybów zsumowane, same miejsca)
+  oraz osobna zakładka dla każdego trybu (gracze podzieleni na Tier 1 – Tier 5).
+- W Panelu wpisujesz nick, region, wybierasz TRYB i wpisujesz punkty -> "Zapisz".
+  Punkty gracza w innych trybach zostają bez zmian. Żeby dodać gracza do drugiego trybu,
+  po prostu zapisz go jeszcze raz z innym trybem.
+- "Edytuj" przy graczu: zmień tryb na liście, żeby zobaczyć/zmienić jego punkty w tym trybie.
+  "Usuń z tego trybu" zabiera gracza tylko z wybranego trybu.
+- WAŻNE przy tej aktualizacji: wklej na nowo CAŁY plik firestore.rules w Firebase
+  (Firestore -> Rules -> Publish) – reguły zapisują teraz punkty osobno dla każdego trybu.
+  Gracze dodani wcześniej nie znikną – trafią do trybu Kreska PvP.
+- Nowy tryb: dopisz go w config.js (sekcja "tryby") ORAZ w firestore.rules (funkcja validPts),
+  albo poproś o to Claude'a.
+
+=== KITY ===
+
+- Zakładka "Kity" pokazuje listę kitów. Dane są w pliku kity.js, a obrazki w folderze "kity".
+- Nowy kit: w kity.js skopiuj cały blok od "{" do "}," pod spodem i zmień nazwę, obrazki i enchanty.
+  Obrazki (zrzuty ekwipunku) wrzuć do folderu "kity" i wpisz ich nazwy w "plik".
+  Potem wgraj na GitHuba kity.js i nowe obrazki (Add file -> Upload files, razem z folderem kity).
+- Możesz też po prostu wysłać Claude'owi zrzuty i enchanty – dopisze kit za Ciebie.
+
+=== GDY PO AKTUALIZACJI STRONA DZIAŁA DZIWNIE ===
+
+- Naciśnij Ctrl+F5 (przeglądarka pobierze wszystko od nowa).
+- Jeśli sam zmieniasz kity.js, config.js albo inne pliki: w index.html zwiększ numer ?v=... przy plikach
+  (np. ?v=2026112601 -> ?v=2026112602), wtedy wszyscy od razu dostaną nową wersję.
+
+=== JAK TO DZIAŁA ===
+
+- Każdy widzi ranking (bez logowania).
+- Gracz zakłada konto (nick + hasło dwa razy) i widzi swój profil: skin i tier
+  (albo informację, że nie ma jeszcze tiera).
+- Panel -> "Gracze w rankingu": dodawanie, zmiana punktów, usuwanie.
+- Panel -> "Uprawnienia" (widzi tylko właściciel): "Daj uprawnienia" robi z gracza moderatora,
+  który może zmieniać ranking. "Odbierz uprawnienia" cofa to od razu.
+
+=== BEZPIECZEŃSTWO – WAŻNE ===
+
+- Włącz weryfikację dwuetapową (2FA) na koncie GitHub i na koncie Google –
+  to jedyne konta, przez które da się zmienić pliki strony i reguły bazy.
+- Dane z config.js są publiczne z założenia (tak działa Firebase) – to nie jest hasło.
+- Nikt nie może sam nadać sobie uprawnień ani zmienić rankingu – serwer odrzuci każdą taką próbę.
+- Rejestracja nie sprawdza, czy ktoś naprawdę jest właścicielem danego nicku w Minecrafcie.
+  Jeśli ktoś zajmie cudzy nick: Firebase -> Authentication -> Users -> usuń to konto
+  (adres nick@gracze.kreska-tiers.example.com), a w Firestore -> users usuń jego dokument.
+- Zapomniane hasło: nie da się go przypomnieć mailem. Usuń konto jak wyżej –
+  gracz zarejestruje się jeszcze raz.

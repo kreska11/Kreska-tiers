@@ -15,6 +15,13 @@ window.KT_CONFIG = {
   },
   ownerNick: "Kreska11",
 
+  // Tryby w rankingu (zakładki nad rankingiem). id = krótka nazwa bez spacji, używana w bazie.
+  // Nowy tryb trzeba też dopisać w firestore.rules (lista trybów w funkcji validPts).
+  tryby: [
+    { id: "kreska", nazwa: "Kreska PvP", ikona: "logo.png" },
+    { id: "ironpot", nazwa: "Iron OP Pot", ikona: "tryby/iron-op-pot.png" }
+  ],
+
   // Ile punktów trzeba mieć na dany tier (od najwyższego do najniższego).
   // Każdy próg musi być MNIEJSZY od poprzedniego. Poniżej LT5 gracz jest "bez tieru".
   progi: {

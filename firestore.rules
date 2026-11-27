@@ -27,22 +27,28 @@ service cloud.firestore {
     function isStaff() {
       return isOwner() || isMod();
     }
+    // Punkty w trybach: mapa { idTrybu: liczba 0–9999 }, co najmniej jeden tryb.
+    // ⚠ Nowy tryb z config.js trzeba dopisać tutaj (w hasOnly i w osobnej linijce poniżej).
+    function validPts(p) {
+      return p is map && p.size() >= 1
+        && p.keys().hasOnly(['kreska', 'ironpot'])
+        && (!('kreska' in p) || (p.kreska is int && p.kreska >= 0 && p.kreska <= 9999))
+        && (!('ironpot' in p) || (p.ironpot is int && p.ironpot >= 0 && p.ironpot <= 9999));
+    }
     function validNick(n) {
       return n is string && n.matches('^[A-Za-z0-9_]{3,16}$');
     }
 
     // Ranking: każdy może czytać, zmieniać tylko właściciel i moderatorzy.
-    // Zapisywane są punkty – tier strona wylicza sama z progów w config.js.
+    // Zapisywane są punkty w każdym trybie – tier strona wylicza sama z progów w config.js.
     match /players/{id} {
       allow read: if true;
       allow create, update: if isStaff()
-        && request.resource.data.keys().hasOnly(['nick', 'points', 'region', 'updatedAt'])
-        && request.resource.data.keys().hasAll(['nick', 'points', 'region', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['nick', 'pts', 'region', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['nick', 'pts', 'region', 'updatedAt'])
         && validNick(request.resource.data.nick)
         && id == request.resource.data.nick.lower()
-        && request.resource.data.points is int
-        && request.resource.data.points >= 0
-        && request.resource.data.points <= 9999
+        && validPts(request.resource.data.pts)
         && request.resource.data.region in ['EU', 'NA', 'SA', 'AS', 'AU', 'ME', 'AF']
         && request.resource.data.updatedAt == request.time;
       allow delete: if isStaff();
