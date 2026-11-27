@@ -51,10 +51,10 @@ $('modes').addEventListener('click', e => {
 function render() {
   // pozycje w każdym trybie i w rankingu ogólnym
   players.forEach(p => { p.pos = {}; p.total = sumPts(p); });
-  // Remis = to samo miejsce (np. 1, 1, 3); wśród remisujących kolejność alfabetyczna.
+  // Remis = to samo miejsce, a następny gracz ma kolejne miejsce (np. 1, 2, 2, 2, 3); wśród remisujących kolejność alfabetyczna.
   const places = (list, score, set) => {
     list.sort((a, b) => score(b) - score(a) || nickCmp(a, b));
-    list.forEach((p, i) => set(p, i > 0 && score(list[i - 1]) === score(p) ? list[i - 1]._pl : i + 1));
+    list.forEach((p, i) => set(p, i === 0 ? 1 : score(list[i - 1]) === score(p) ? list[i - 1]._pl : list[i - 1]._pl + 1));
     return list;
   };
   for (const t of TRYBY) {
