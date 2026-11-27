@@ -51,13 +51,18 @@ $('modes').addEventListener('click', e => {
 function render() {
   // pozycje w każdym trybie i w rankingu ogólnym
   players.forEach(p => { p.pos = {}; p.total = sumPts(p); });
+  // Remis = to samo miejsce (np. 1, 1, 3); wśród remisujących kolejność alfabetyczna.
+  const places = (list, score, set) => {
+    list.sort((a, b) => score(b) - score(a) || nickCmp(a, b));
+    list.forEach((p, i) => set(p, i > 0 && score(list[i - 1]) === score(p) ? list[i - 1]._pl : i + 1));
+    return list;
+  };
   for (const t of TRYBY) {
-    players.filter(p => Object.hasOwn(p.pts, t.id)).sort((a, b) => b.pts[t.id] - a.pts[t.id] || nickCmp(a, b)).forEach((p, i) => { p.pos[t.id] = i + 1; });
+    places(players.filter(p => Object.hasOwn(p.pts, t.id)), p => p.pts[t.id], (p, n) => { p._pl = n; p.pos[t.id] = n; });
   }
-  const overall = [...players].sort((a, b) => b.total - a.total || nickCmp(a, b));
-  overall.forEach((p, i) => { p.opos = i + 1; });
+  const overall = places([...players], p => p.total, (p, n) => { p._pl = n; p.opos = n; });
   const isAll = mode === OVERALL;
-  ranked = isAll ? overall : players.filter(p => Object.hasOwn(p.pts, mode)).sort((a, b) => a.pos[mode] - b.pos[mode]);
+  ranked = isAll ? overall : players.filter(p => Object.hasOwn(p.pts, mode)).sort((a, b) => a.pos[mode] - b.pos[mode] || nickCmp(a, b));
   const q = query.toLowerCase();
   const list = q ? ranked.filter(p => p.nick.toLowerCase().includes(q)) : ranked;
   $('sAll').textContent = loaded ? ranked.length : '–';
@@ -176,7 +181,7 @@ function authError(e) {
   if (c === 'auth/weak-password') return 'Hasło jest za słabe – użyj co najmniej 8 znaków.';
   if (c === 'auth/network-request-failed') return 'Brak połączenia z internetem.';
   if (c === 'auth/operation-not-allowed') return 'Logowanie hasłem nie jest włączone w Firebase (Authentication → Email/Password).';
-  if (c === 'permission-denied') return 'Baza odrzuciła zapis – sprawdź reguły w Firebase.';
+  if (c === 'permission-denied') return 'Baza odrzuciła zapis (permission-denied). Najczęściej to znaczy, że w Firebase są stare reguły: wklej cały plik firestore.rules (Firestore → Rules → Publish) – w nowych jest słowo „ironpot”. Jeśli są aktualne, sprawdź, czy jesteś zalogowany jako właściciel albo moderator.';
   return 'Coś poszło nie tak' + (c ? ' (' + c + ')' : '') + '.';
 }
 
